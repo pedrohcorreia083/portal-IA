@@ -1,1 +1,37 @@
+# Laravel padrão
 /vendor
+/node_modules
+/public/storage
+/storage/*.key
+/.idea
+/.vscode
+/.phpunit.result.cache
+Homestead.yaml
+Homestead.json
+npm-debug.log
+yarn-error.log
+.env
+.env.*
+.phpunit.result.cache
+.phpunit.cache
+
+# Logs e cache
+/storage/logs/*
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/framework/testing/*
+/bootstrap/cache/*
+
+# Exceções (mantém os .gitignore vazios nas pastas obrigatórias)
+!storage/app/public/.gitignore
+!storage/framework/.gitignore
+!storage/framework/cache/.gitignore
+!storage/framework/sessions/.gitignore
+!storage/framework/views/.gitignore
+!bootstrap/cache/.gitignore
+
+# Outras ferramentas
+/.DS_Store
+Thumbs.db
+
