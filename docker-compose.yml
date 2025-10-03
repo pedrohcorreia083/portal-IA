@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # Serviço da Aplicação Laravel
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        user: laravel
+        uid: 1000
+    image: lbf-portal-app
+    container_name: lbf-portal-app
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - .:/var/www
+      - ./docker/php/php.ini:/usr/local/etc/php/conf.d/99-custom.ini
+    networks:
+      - lbf-network
+
+  # Serviço do Nginx
+  webserver:
+    image: nginx:alpine
+    container_name: lbf-portal-webserver
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - .:/var/www
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - app
+    networks:
+      - lbf-network
+
+  # Serviço do MySQL
+  db:
+    image: mysql:8.0
+    container_name: lbf-portal-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_USER: ${DB_USERNAME}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+    ports:
+      - "3306:3306"
+    networks:
+      - lbf-network
+
+  # PHPMyAdmin (Opcional)
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: lbf-portal-phpmyadmin
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: db
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+    depends_on:
+      - db
+    networks:
+      - lbf-network
+
+# Volumes para persistência de dados
+volumes:
+  db_data:
+
+# Redes
+networks:
+  lbf-network:
+    driver: bridge
