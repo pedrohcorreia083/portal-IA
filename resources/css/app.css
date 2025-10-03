@@ -1,11 +1,516 @@
-@import 'tailwindcss';
+/* ===== VARIÁVEIS DA MARCA LBF ===== */
+:root {
+    --lbf-dark: #3D3935;
+    --lbf-medium: #857874;
+    --lbf-accent: #C1B2A2;
+    --lbf-light: #E7E3DF;
+    --lbf-white: #FFFFFF;
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
-@source '../**/*.blade.php';
-@source '../**/*.js';
+    /* Cores funcionais baseadas na marca */
+    --lbf-primary: #3D3935;
+    --lbf-secondary: #857874;
+    --lbf-success: #C1B2A2;
+    --lbf-warning: #857874;
+    --lbf-danger: #8B4513;
+    --lbf-info: #C1B2A2;
+}
 
-@theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+/* ===== FONTES ===== */
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap');
+
+/* Fonte para títulos - ALTA (substituindo por Montserrat Bold) */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.card-title,
+.content-header h1,
+.brand-text,
+.navbar-brand {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700 !important;
+    color: var(--lbf-dark);
+}
+
+/* Fonte para corpo - MONTSERRAT */
+body {
+    font-family: 'Montserrat', sans-serif !important;
+    font-weight: 400;
+    color: var(--lbf-dark);
+    background-color: var(--lbf-white);
+}
+
+/* ===== LAYOUT PRINCIPAL ===== */
+.wrapper {
+    background-color: var(--lbf-white);
+}
+
+/* Sidebar */
+.main-sidebar {
+    background-color: var(--lbf-dark) !important;
+    box-shadow: 2px 0 6px rgba(61, 57, 53, 0.1);
+}
+
+.brand-link {
+    border-bottom: 1px solid var(--lbf-medium) !important;
+    background-color: var(--lbf-dark) !important;
+}
+
+.brand-text {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--lbf-white) !important;
+}
+
+/* Sidebar Menu */
+.sidebar-dark-primary .nav-sidebar>.nav-item>.nav-link {
+    color: var(--lbf-light);
+    border-left: 3px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.sidebar-dark-primary .nav-sidebar>.nav-item>.nav-link:hover {
+    background-color: rgba(193, 178, 162, 0.1);
+    color: var(--lbf-accent);
+    border-left-color: var(--lbf-accent);
+}
+
+.sidebar-dark-primary .nav-sidebar>.nav-item>.nav-link.active {
+    background-color: var(--lbf-accent) !important;
+    color: var(--lbf-dark) !important;
+    border-left-color: var(--lbf-accent);
+    font-weight: 600;
+}
+
+.nav-sidebar .nav-treeview .nav-link {
+    color: var(--lbf-light);
+    opacity: 0.9;
+}
+
+.nav-sidebar .nav-treeview .nav-link:hover {
+    color: var(--lbf-accent);
+    background-color: rgba(193, 178, 162, 0.05);
+}
+
+/* User Panel no Sidebar */
+.user-panel .info {
+    margin-left: 10px;
+}
+
+.user-panel .info a {
+    color: var(--lbf-white) !important;
+    font-weight: 500;
+}
+
+.user-panel .img-circle {
+    border: 2px solid var(--lbf-accent);
+}
+
+/* ===== NAVBAR ===== */
+.navbar-white {
+    background-color: var(--lbf-white) !important;
+    border-bottom: 1px solid var(--lbf-light);
+    box-shadow: 0 2px 4px rgba(61, 57, 53, 0.1);
+}
+
+.navbar-light .navbar-nav .nav-link {
+    color: var(--lbf-dark);
+    font-weight: 500;
+}
+
+.navbar-light .navbar-nav .nav-link:hover {
+    color: var(--lbf-accent);
+}
+
+/* ===== CONTENT ===== */
+.content-wrapper {
+    background-color: var(--lbf-white);
+}
+
+.content-header h1 {
+    color: var(--lbf-dark);
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.breadcrumb {
+    background-color: transparent;
+    padding: 0;
+}
+
+.breadcrumb-item a {
+    color: var(--lbf-medium);
+    text-decoration: none;
+}
+
+.breadcrumb-item.active {
+    color: var(--lbf-dark);
+    font-weight: 500;
+}
+
+/* ===== CARDS ===== */
+.card {
+    border: 1px solid var(--lbf-light);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(61, 57, 53, 0.08);
+    background-color: var(--lbf-white);
+}
+
+.card-header {
+    background-color: var(--lbf-white) !important;
+    border-bottom: 1px solid var(--lbf-light);
+    padding: 1rem 1.25rem;
+}
+
+.card-title {
+    color: var(--lbf-dark);
+    font-weight: 700;
+    margin-bottom: 0;
+}
+
+/* ===== BOTÕES ===== */
+.btn-primary {
+    background-color: var(--lbf-dark);
+    border-color: var(--lbf-dark);
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: var(--lbf-medium);
+    border-color: var(--lbf-medium);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(61, 57, 53, 0.2);
+}
+
+.btn-success {
+    background-color: var(--lbf-accent);
+    border-color: var(--lbf-accent);
+    color: var(--lbf-dark);
+    font-weight: 500;
+}
+
+.btn-success:hover {
+    background-color: #B8A692;
+    border-color: #B8A692;
+    color: var(--lbf-dark);
+}
+
+.btn-warning {
+    background-color: var(--lbf-medium);
+    border-color: var(--lbf-medium);
+    color: var(--lbf-white);
+}
+
+.btn-warning:hover {
+    background-color: #75645F;
+    border-color: #75645F;
+    color: var(--lbf-white);
+}
+
+.btn-danger {
+    background-color: var(--lbf-danger);
+    border-color: var(--lbf-danger);
+}
+
+.btn-info {
+    background-color: var(--lbf-accent);
+    border-color: var(--lbf-accent);
+    color: var(--lbf-dark);
+}
+
+.btn-default {
+    background-color: var(--lbf-light);
+    border-color: var(--lbf-light);
+    color: var(--lbf-dark);
+}
+
+/* ===== FORMULÁRIOS ===== */
+.form-control {
+    border: 1px solid var(--lbf-light);
+    border-radius: 4px;
+    padding: 0.5rem 0.75rem;
+    font-family: 'Montserrat', sans-serif;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus {
+    border-color: var(--lbf-accent);
+    box-shadow: 0 0 0 0.2rem rgba(193, 178, 162, 0.25);
+}
+
+.form-label {
+    color: var(--lbf-dark);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+/* Checkboxes e Radios */
+.form-check-input:checked {
+    background-color: var(--lbf-accent);
+    border-color: var(--lbf-accent);
+}
+
+.form-check-label {
+    font-weight: 400;
+    color: var(--lbf-dark);
+}
+
+/* ===== BADGES ===== */
+.badge {
+    font-weight: 500;
+    font-size: 0.75rem;
+}
+
+.badge-primary {
+    background-color: var(--lbf-dark);
+}
+
+.badge-success {
+    background-color: var(--lbf-accent);
+    color: var(--lbf-dark);
+}
+
+.badge-warning {
+    background-color: var(--lbf-medium);
+}
+
+.badge-danger {
+    background-color: var(--lbf-danger);
+}
+
+.badge-info {
+    background-color: var(--lbf-accent);
+    color: var(--lbf-dark);
+}
+
+/* ===== TABELAS ===== */
+.table {
+    color: var(--lbf-dark);
+}
+
+.table th {
+    background-color: var(--lbf-light);
+    border-bottom: 2px solid var(--lbf-accent);
+    font-weight: 600;
+    color: var(--lbf-dark);
+}
+
+.table-striped tbody tr:nth-of-type(odd) {
+    background-color: rgba(231, 227, 223, 0.3);
+}
+
+/* ===== DASHBOARD ===== */
+/* Small Boxes */
+.small-box {
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(61, 57, 53, 0.08);
+    transition: all 0.3s ease;
+    border-left: 4px solid transparent;
+}
+
+.small-box:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(61, 57, 53, 0.15);
+}
+
+.small-box.bg-info {
+    background-color: var(--lbf-dark) !important;
+    border-left-color: var(--lbf-dark);
+}
+
+.small-box.bg-success {
+    background-color: var(--lbf-accent) !important;
+    border-left-color: var(--lbf-accent);
+    color: var(--lbf-dark) !important;
+}
+
+.small-box.bg-success .icon i {
+    color: rgba(61, 57, 53, 0.8) !important;
+}
+
+.small-box.bg-warning {
+    background-color: var(--lbf-medium) !important;
+    border-left-color: var(--lbf-medium);
+}
+
+.small-box.bg-danger {
+    background-color: var(--lbf-danger) !important;
+    border-left-color: var(--lbf-danger);
+}
+
+/* Botões de Ação */
+.btn-app {
+    background: var(--lbf-white);
+    border: 1px solid var(--lbf-light);
+    border-radius: 8px;
+    color: var(--lbf-dark);
+    transition: all 0.3s ease;
+}
+
+.btn-app:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(61, 57, 53, 0.15);
+    border-color: var(--lbf-accent);
+}
+
+.btn-app.bg-success {
+    background-color: var(--lbf-accent) !important;
+    border-color: var(--lbf-accent);
+}
+
+.btn-app.bg-info {
+    background-color: var(--lbf-dark) !important;
+    border-color: var(--lbf-dark);
+    color: var(--lbf-white);
+}
+
+.btn-app.bg-warning {
+    background-color: var(--lbf-medium) !important;
+    border-color: var(--lbf-medium);
+    color: var(--lbf-white);
+}
+
+.btn-app.bg-purple {
+    background-color: var(--lbf-accent) !important;
+    border-color: var(--lbf-accent);
+    color: var(--lbf-dark);
+}
+
+/* ===== PRODUCT ITEMS (OS) ===== */
+.product-item {
+    border: 1px solid var(--lbf-light);
+    border-radius: 8px;
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    background: var(--lbf-white);
+    border-left: 4px solid var(--lbf-accent);
+    transition: all 0.3s ease;
+}
+
+.product-item:hover {
+    border-left-color: var(--lbf-dark);
+    box-shadow: 0 4px 8px rgba(61, 57, 53, 0.1);
+}
+
+.remove-product {
+    color: var(--lbf-danger);
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.remove-product:hover {
+    color: #723A0D;
+}
+
+/* ===== STATS CARDS ===== */
+.stat-number {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--lbf-dark);
+}
+
+.stat-label {
+    color: var(--lbf-medium);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+/* ===== LOGIN PAGE ===== */
+.login-page {
+    background: linear-gradient(135deg, var(--lbf-dark) 0%, var(--lbf-medium) 100%);
+}
+
+.login-box {
+    background: var(--lbf-white);
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(61, 57, 53, 0.3);
+    border: 1px solid var(--lbf-light);
+}
+
+.login-logo {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    color: var(--lbf-dark);
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-logo img {
+    filter: brightness(0) invert(0);
+}
+
+.login-card-body {
+    padding: 2rem;
+}
+
+/* ===== FOOTER ===== */
+.main-footer {
+    background-color: var(--lbf-white);
+    border-top: 1px solid var(--lbf-light);
+    color: var(--lbf-medium);
+    font-size: 0.875rem;
+}
+
+/* ===== RESPONSIVIDADE ===== */
+@media (max-width: 768px) {
+    .brand-text {
+        font-size: 1.25rem;
+    }
+
+    .content-header h1 {
+        font-size: 1.5rem;
+    }
+
+    .small-box {
+        margin-bottom: 1rem;
+    }
+}
+
+/* ===== UTILITÁRIOS ===== */
+.text-lbf-dark {
+    color: var(--lbf-dark) !important;
+}
+
+.text-lbf-medium {
+    color: var(--lbf-medium) !important;
+}
+
+.text-lbf-accent {
+    color: var(--lbf-accent) !important;
+}
+
+.text-lbf-light {
+    color: var(--lbf-light) !important;
+}
+
+.bg-lbf-dark {
+    background-color: var(--lbf-dark) !important;
+}
+
+.bg-lbf-medium {
+    background-color: var(--lbf-medium) !important;
+}
+
+.bg-lbf-accent {
+    background-color: var(--lbf-accent) !important;
+}
+
+.bg-lbf-light {
+    background-color: var(--lbf-light) !important;
+}
+
+.border-lbf-dark {
+    border-color: var(--lbf-dark) !important;
+}
+
+.border-lbf-accent {
+    border-color: var(--lbf-accent) !important;
+}
+
+.border-lbf-light {
+    border-color: var(--lbf-light) !important;
 }
