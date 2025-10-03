@@ -299,31 +299,6 @@ return [
     */
 
     'menu' => [
-        [
-            'text' => 'Dashboard',
-            'url'  => '/dashboard',
-            'icon' => 'fas fa-tachometer-alt',
-        ],
-        [
-            'text' => 'Perfil',
-            'url'  => '/profile',
-            'icon' => 'fas fa-user',
-        ],
-        [
-            'text'    => 'Configurações',
-            'icon'    => 'fas fa-cogs',
-            'submenu' => [
-                [
-                    'text' => 'Usuários',
-                    'url'  => '/users',
-                ],
-                [
-                    'text' => 'Permissões',
-                    'url'  => '/permissions',
-                ],
-            ],
-        ],
-        
         // Navbar items:
         [
             'type' => 'navbar-search',

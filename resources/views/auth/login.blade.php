@@ -11,8 +11,7 @@
     <link rel="stylesheet" href="{{ asset('vendor/fontawesome-free/css/all.min.css') }}">
     <style>
         .login-page {
-            background: #857874;
-            background: linear-gradient(90deg, rgba(133, 120, 116, 1) 0%, rgba(194, 180, 167, 1) 50%);
+            background: linear-gradient(135deg, var(--lbf-dark) 0%, var(--lbf-medium) 100%);
             min-height: 100vh;
             display: flex;
             align-items: center;
@@ -25,25 +24,27 @@
         .login-logo {
             font-size: 2.5rem;
             font-weight: 700;
-            color: #fff;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            color: var(--lbf-dark);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         .login-card {
             border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-            border: none;
+            box-shadow: 0 10px 30px rgba(61, 57, 53, 0.3);
+            border: 1px solid var(--lbf-light);
+            background: var(--lbf-white);
         }
 
         .btn-primary {
-            background: #857874;
+            background: linear-gradient(135deg, var(--lbf-dark) 0%, var(--lbf-medium) 100%);
             border: none;
+            font-weight: 600;
         }
 
         .btn-primary:hover {
-            background: #C2B4A7;
+            background: linear-gradient(135deg, var(--lbf-medium) 0%, #75645F 100%);
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 5px 15px rgba(61, 57, 53, 0.3);
         }
     </style>
 </head>
@@ -52,7 +53,10 @@
     <div class="login-box">
         <!-- Logo -->
         <div class="login-logo text-center mb-4">
-            LBF Portal
+            <img src="{{ asset('images/logo/logo.png') }}"
+                alt="LBF Portal"
+                class="img-fluid"
+                style="max-height: 130px; width: auto;">
         </div>
 
         <!-- Card de Login -->
@@ -121,11 +125,6 @@
                     <br>
                     @endif
 
-                    @if (Route::has('register'))
-                    <a href="{{ route('register') }}" class="text-dark">
-                        <i class="fas fa-user-plus mr-2"></i>Criar nova conta
-                    </a>
-                    @endif
                 </div>
             </div>
         </div>
