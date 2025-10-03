@@ -80,16 +80,9 @@ Ordem de Serviço: {{ $serviceOrder->order_number }}
                             <tr>
                                 <td>{{ $index + 1 }}</td>
                                 <td>
-                                    <strong>{{ $item->product->code }} - {{ $item->product->name }}</strong>
-                                    @if($item->product_image)
-                                    <br>
-                                    <a href="{{ Storage::url($item->product_image) }}" target="_blank" class="btn btn-sm btn-outline-primary mt-1">
-                                        <i class="fas fa-image"></i> Ver Foto
-                                    </a>
-                                    @endif
+                                    <!-- <strong>{{ $item->product->code }} - {{ $item->product->name }}</strong> -->
                                     @if($item->identified_product_name)
-                                    <br>
-                                    <small class="text-muted">Identificado: {{ $item->identified_product_name }}</small>
+                                    <strong>{{ $item->identified_product_name }}</strong>
                                     @endif
                                 </td>
                                 <td>

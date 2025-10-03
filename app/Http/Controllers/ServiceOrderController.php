@@ -60,11 +60,13 @@ class ServiceOrderController extends Controller
 
             // Upload da imagem se existir
             if (isset($itemData['product_image']) && $itemData['product_image']->isValid()) {
-                $path = $itemData['product_image']->store('product-images', 'public');
+                $file = $itemData['product_image'];
+                $path = $file->store('product-images', 'public');
                 $item->product_image = $path;
 
-                // Integração com IA (fake para demo)
-                $item->identified_product_name = $this->identifyProductWithAI($path);
+                // Integração com IA - passando o nome original do arquivo
+                $originalFileName = $file->getClientOriginalName();
+                $item->identified_product_name = $this->identifyProductWithAI($path, $originalFileName);
             }
 
             $serviceOrder->items()->save($item);
@@ -144,46 +146,68 @@ class ServiceOrderController extends Controller
     public function pdf(ServiceOrder $serviceOrder)
     {
         $serviceOrder->load('items.product');
-        
+
         $pdf = PDF::loadView('service-orders.pdf', compact('serviceOrder'));
-        
+
         $pdf->setPaper('A4', 'portrait');
         $pdf->setOption('enable_html5_parser', true);
         $pdf->setOption('enable_remote', true);
-        
+
         return $pdf->stream("OS-{$serviceOrder->order_number}.pdf");
     }
 
     public function downloadPdf(ServiceOrder $serviceOrder)
     {
         $serviceOrder->load('items.product');
-        
+
         $pdf = PDF::loadView('service-orders.pdf', compact('serviceOrder'));
-        
+
         $pdf->setPaper('A4', 'portrait');
         $pdf->setOption('enable_html5_parser', true);
         $pdf->setOption('enable_remote', true);
-        
+
         $filename = "OS-{$serviceOrder->order_number}-{$serviceOrder->order_date->format('d-m-Y')}.pdf";
-        
+
         return $pdf->download($filename);
     }
 
     // APENAS UMA FUNÇÃO identifyProductWithAI
-    private function identifyProductWithAI($imagePath)
+    private function identifyProductWithAI($imagePath, $originalFileName = null)
     {
         // EM PRODUÇÃO: Aqui você integraria com uma API real de IA
-        // Para demo, retorna um código aleatório
-        
-        $productCodes = [
-            'AN01050108RH', 'BR02031506DO', 'CO03020812NE', 'PU04011018CL',
-            'TO05042520RO', 'PE06031215RH', 'AL07051822DO', 'CH08022025MIX',
-            'AN01060109RO', 'BR02041507NE', 'CO03030813DO', 'PU04021019RH'
-        ];
-        
-        $randomCode = $productCodes[array_rand($productCodes)];
-        
-        return $randomCode;
+        // Para demo, extraímos o código do nome do arquivo
+
+        // Se não temos o nome original, retornar um código aleatório
+        if (!$originalFileName) {
+            return $this->getRandomProductCode();
+        }
+
+        // Extrair código do nome do arquivo
+        // Exemplo: "AN03030033MF R$72,00.jpg" → "AN03030033MF"
+        $code = $this->extractCodeFromFileName($originalFileName);
+
+        return $code ?: $this->getRandomProductCode();
+    }
+
+    private function extractCodeFromFileName($fileName)
+    {
+        // Remove a extensão do arquivo
+        $fileNameWithoutExt = pathinfo($fileName, PATHINFO_FILENAME);
+
+        // Padrões comuns nos exemplos fornecidos:
+        // "AN03030033MF R$72,00" → queremos "AN03030033MF"
+        // "BC01010001DOLS R$89,00" → queremos "BC01010001DOLS"
+
+        // Divide por espaço e pega a primeira parte (o código)
+        $parts = explode(' ', $fileNameWithoutExt);
+        $potentialCode = $parts[0];
+
+        // Verifica se parece um código de produto (2 primeiras letras + números)
+        if (preg_match('/^[A-Z]{2}\d+[A-Z]*$/', $potentialCode)) {
+            return $potentialCode;
+        }
+
+        return null;
     }
 
     private function checkAdmin()

@@ -346,6 +346,7 @@ Nova Ordem de Serviço
     }
 
     // Simulação de identificação por IA
+    // Na função identifyProductWithAI, atualize para mostrar a origem:
     function identifyProductWithAI(index) {
         const fileInput = document.querySelector(`#product-${index} .product-image`);
         const file = fileInput.files[0];
@@ -359,52 +360,79 @@ Nova Ordem de Serviço
         document.getElementById(`ai-loading-${index}`).style.display = 'block';
         document.getElementById(`ai-button-${index}`).style.display = 'none';
 
-        // Simular processamento da IA (2-3 segundos)
+        // Simular processamento da IA
         setTimeout(() => {
-            // Esconder loading
             document.getElementById(`ai-loading-${index}`).style.display = 'none';
 
-            // Simular resultado da IA baseado no "padrão" da imagem
             const fakeAIResult = generateFakeAIResult(file);
 
-            // Mostrar resultado
+            // Mostrar resultado com origem
+            let sourceText = '';
+            if (fakeAIResult.source === 'filename') {
+                sourceText = '<small class="text-success">Identificado pelo nome do arquivo</small>';
+            } else {
+                sourceText = '<small class="text-warning">Identificado por análise visual</small>';
+            }
+
             document.getElementById(`identified-product-${index}`).innerHTML =
-                `<strong>${fakeAIResult.code}</strong> - ${fakeAIResult.name}`;
+                `<strong>${fakeAIResult.code}</strong><br>${sourceText}`;
             document.getElementById(`ai-result-${index}`).style.display = 'block';
 
             // Armazenar resultado para uso posterior
             window[`aiResult_${index}`] = fakeAIResult;
 
-        }, 2000 + Math.random() * 2000); // Entre 2-4 segundos
+        }, 2000 + Math.random() * 2000);
     }
 
     // Gerar resultado fake da IA - APENAS CÓDIGO
     function generateFakeAIResult(file) {
-        // Simular diferentes códigos de produtos baseados em "padrões" simulados
+        // Extrair código do nome do arquivo
+        const fileName = file.name;
+        const extractedCode = extractCodeFromFileName(fileName);
+
+        if (extractedCode) {
+            return {
+                code: extractedCode,
+                source: 'filename'
+            };
+        }
+
+        // Fallback: código aleatório
         const productCodes = [
-            'AN01050108RH',
-            'BR02031506DO',
-            'CO03020812NE',
-            'PU04011018CL',
-            'TO05042520RO',
-            'PE06031215RH',
-            'AL07051822DO',
-            'CH08022025MIX',
-            'AN01060109RO',
-            'BR02041507NE',
-            'CO03030813DO',
-            'PU04021019RH'
+            'AN01050108RH', 'BR02031506DO', 'CO03020812NE', 'PU04011018CL',
+            'TO05042520RO', 'PE06031215RH', 'AL07051822DO', 'CH08022025MIX',
+            'AN01060109RO', 'BR02041507NE', 'CO03030813DO', 'PU04021019RH'
         ];
 
-        // Escolher um código aleatório (na vida real, a IA analisaria a imagem)
         const randomCode = productCodes[Math.floor(Math.random() * productCodes.length)];
 
         return {
-            code: randomCode
+            code: randomCode,
+            source: 'random'
         };
     }
 
-    // Usar o produto identificado pela IA
+    function extractCodeFromFileName(fileName) {
+        // Remove a extensão do arquivo
+        const fileNameWithoutExt = fileName.replace(/\.[^/.]+$/, "");
+
+        // Exemplos:
+        // "AN03030033MF R$72,00" → "AN03030033MF"
+        // "BC01010001DOLS R$89,00" → "BC01010001DOLS"
+        // "BR01010052DOPT R$59,00" → "BR01010052DOPT"
+
+        // Divide por espaço e pega a primeira parte
+        const parts = fileNameWithoutExt.split(' ');
+        const potentialCode = parts[0];
+
+        // Verifica se parece um código de produto (2+ letras no início + números + letras opcionais)
+        if (/^[A-Z]{2,}\d+[A-Z]*$/.test(potentialCode)) {
+            return potentialCode;
+        }
+
+        return null;
+    }
+
     // Usar o produto identificado pela IA
     function useIdentifiedProduct(index) {
         const aiResult = window[`aiResult_${index}`];
@@ -442,6 +470,32 @@ Nova Ordem de Serviço
         // Fechar o resultado da IA
         document.getElementById(`ai-result-${index}`).style.display = 'none';
         document.getElementById(`ai-button-${index}`).style.display = 'block';
+    }
+
+    // Mostrar mensagem temporária - ADICIONE ESTA FUNÇÃO
+    function showTemporaryMessage(message, type = 'info') {
+        const alertClass = type === 'success' ? 'alert-success' : 'alert-info';
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert ${alertClass} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="close" data-dismiss="alert">
+            <span>&times;</span>
+        </button>
+    `;
+
+        // Inserir no início do conteúdo
+        const content = document.querySelector('.content');
+        if (content) {
+            content.insertBefore(alertDiv, content.firstChild);
+        }
+
+        // Auto-remover após 3 segundos
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 3000);
     }
 
     // Função para decodificar o código do produto (educacional)
