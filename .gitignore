@@ -23,6 +23,7 @@ yarn-error.log
 /storage/framework/testing/*
 /bootstrap/cache/*
 
+
 # Exceções (mantém os .gitignore vazios nas pastas obrigatórias)
 !storage/app/public/.gitignore
 !storage/framework/.gitignore
