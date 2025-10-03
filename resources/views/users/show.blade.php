@@ -16,12 +16,6 @@ Perfil do Usuário
     <div class="col-md-4">
         <div class="card card-primary card-outline">
             <div class="card-body box-profile">
-                <div class="text-center">
-                    <img class="profile-user-img img-fluid img-circle"
-                        src="{{ asset('vendor/adminlte/dist/img/avatar.png') }}"
-                        alt="User profile picture">
-                </div>
-
                 <h3 class="profile-username text-center">{{ $user->full_name }}</h3>
 
                 <p class="text-muted text-center">

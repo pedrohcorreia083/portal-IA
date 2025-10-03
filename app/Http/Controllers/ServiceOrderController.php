@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ServiceOrderItem;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class ServiceOrderController extends Controller
 {
@@ -62,8 +63,8 @@ class ServiceOrderController extends Controller
                 $path = $itemData['product_image']->store('product-images', 'public');
                 $item->product_image = $path;
 
-                // TODO: Integrar com API de IA aqui
-                // $item->identified_product_name = $this->identifyProductWithAI($path);
+                // Integração com IA (fake para demo)
+                $item->identified_product_name = $this->identifyProductWithAI($path);
             }
 
             $serviceOrder->items()->save($item);
@@ -93,11 +94,11 @@ class ServiceOrderController extends Controller
 
     public function update(Request $request, ServiceOrder $serviceOrder)
     {
-        // Proteção extra no controller
         if (!auth()->user()->isAdmin()) {
             return redirect()->route('service-orders.show', $serviceOrder)
                 ->with('error', 'Acesso negado. Apenas administradores podem editar ordens de serviço.');
         }
+
         $validated = $request->validate([
             'client_name' => 'required|string|max:255',
             'client_document' => 'nullable|string|max:20',
@@ -139,11 +140,56 @@ class ServiceOrderController extends Controller
             ->with('success', 'Status da OS atualizado com sucesso!');
     }
 
-    // Método para integrar com IA (placeholder)
-    private function identifyProductWithAI(string $imagePath): string
+    // PDF Methods
+    public function pdf(ServiceOrder $serviceOrder)
     {
-        // TODO: Implementar integração com API de IA
-        // Por enquanto, retorna um placeholder
-        return "Produto identificado pela IA - " . date('Y-m-d H:i:s');
+        $serviceOrder->load('items.product');
+        
+        $pdf = PDF::loadView('service-orders.pdf', compact('serviceOrder'));
+        
+        $pdf->setPaper('A4', 'portrait');
+        $pdf->setOption('enable_html5_parser', true);
+        $pdf->setOption('enable_remote', true);
+        
+        return $pdf->stream("OS-{$serviceOrder->order_number}.pdf");
+    }
+
+    public function downloadPdf(ServiceOrder $serviceOrder)
+    {
+        $serviceOrder->load('items.product');
+        
+        $pdf = PDF::loadView('service-orders.pdf', compact('serviceOrder'));
+        
+        $pdf->setPaper('A4', 'portrait');
+        $pdf->setOption('enable_html5_parser', true);
+        $pdf->setOption('enable_remote', true);
+        
+        $filename = "OS-{$serviceOrder->order_number}-{$serviceOrder->order_date->format('d-m-Y')}.pdf";
+        
+        return $pdf->download($filename);
+    }
+
+    // APENAS UMA FUNÇÃO identifyProductWithAI
+    private function identifyProductWithAI($imagePath)
+    {
+        // EM PRODUÇÃO: Aqui você integraria com uma API real de IA
+        // Para demo, retorna um código aleatório
+        
+        $productCodes = [
+            'AN01050108RH', 'BR02031506DO', 'CO03020812NE', 'PU04011018CL',
+            'TO05042520RO', 'PE06031215RH', 'AL07051822DO', 'CH08022025MIX',
+            'AN01060109RO', 'BR02041507NE', 'CO03030813DO', 'PU04021019RH'
+        ];
+        
+        $randomCode = $productCodes[array_rand($productCodes)];
+        
+        return $randomCode;
+    }
+
+    private function checkAdmin()
+    {
+        if (!auth()->user()->isAdmin()) {
+            abort(403, 'Acesso negado. Apenas administradores podem realizar esta ação.');
+        }
     }
 }

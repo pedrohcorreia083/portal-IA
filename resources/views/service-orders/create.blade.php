@@ -136,6 +136,48 @@ Nova Ordem de Serviço
         color: #dc3545;
         cursor: pointer;
     }
+
+    .product-item {
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background: #f8f9fa;
+    }
+
+    .remove-product {
+        color: #dc3545;
+        cursor: pointer;
+    }
+
+    .image-preview {
+        max-width: 150px;
+        max-height: 150px;
+        margin-top: 10px;
+        display: none;
+    }
+
+    .ai-loading {
+        display: none;
+        color: #007bff;
+    }
+
+    .ai-result {
+        display: none;
+        background: #d4edda;
+        border: 1px solid #c3e6cb;
+        border-radius: 4px;
+        padding: 10px;
+        margin-top: 10px;
+    }
+
+    .identified-product {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 4px;
+        padding: 8px;
+        margin-top: 5px;
+    }
 </style>
 @endpush
 
@@ -144,7 +186,7 @@ Nova Ordem de Serviço
     let productIndex = 0;
     const products = @json($products);
 
-    // Template para um item de produto
+    // Template atualizado para incluir IA
     const productTemplate = (index) => `
 <div class="product-item" id="product-${index}">
     <div class="row">
@@ -162,27 +204,59 @@ Nova Ordem de Serviço
         <div class="col-md-4">
             <div class="form-group">
                 <label>Foto do Produto</label>
-                <input type="file" class="form-control-file" name="items[${index}][product_image]" accept="image/*">
-                <small class="form-text text-muted">Tire uma foto ou anexe imagem do produto</small>
+                <input type="file" class="form-control-file product-image" 
+                       name="items[${index}][product_image]" 
+                       accept="image/*"
+                       onchange="previewImage(this, ${index})">
+                <small class="form-text text-muted">Tire uma foto do produto para identificação por IA</small>
+                
+                <!-- Preview da imagem -->
+                <img id="preview-${index}" class="image-preview" alt="Preview">
+                
+                <!-- Botão de identificação por IA -->
+                <button type="button" class="btn btn-info btn-sm mt-2" onclick="identifyProductWithAI(${index})" 
+                        id="ai-button-${index}">
+                    <i class="fas fa-robot"></i> Identificar com IA
+                </button>
+                
+                <!-- Loading da IA -->
+                <div class="ai-loading" id="ai-loading-${index}">
+                    <i class="fas fa-spinner fa-spin"></i> Analisando imagem...
+                </div>
+                
+                <!-- Resultado da IA -->
+                <div class="ai-result" id="ai-result-${index}">
+                    <i class="fas fa-check-circle text-success"></i>
+                    <strong>Produto identificado:</strong>
+                    <div class="identified-product" id="identified-product-${index}"></div>
+                    <button type="button" class="btn btn-success btn-sm mt-2" 
+                            onclick="useIdentifiedProduct(${index})">
+                        <i class="fas fa-check"></i> Usar este produto
+                    </button>
+                </div>
             </div>
         </div>
+        
         <div class="col-md-4">
             <div class="form-group">
                 <label>Tipo de Produto *</label>
-                <select class="form-control" name="items[${index}][product_id]" required onchange="updateProductInfo(${index}, this.value)">
-                    <option value="">Selecione...</option>
-                    ${products.map(product => `
-                        <option value="${product.id}" data-category="${product.category}">
-                            ${product.code} - ${product.name}
-                        </option>
-                    `).join('')}
-                </select>
+                    <select class="form-control product-select" name="items[${index}][product_id]" required 
+                            onchange="updateProductInfo(${index}, this.value)" id="product-select-${index}">
+                        <option value="">Selecione...</option>
+                        ${products.map(product => `
+                            <option value="${product.id}" data-code="${product.code}">
+                                ${product.code}
+                            </option>
+                        `).join('')}
+                    </select>
+                <small class="form-text text-muted">Ou use a identificação por IA acima</small>
             </div>
         </div>
+        
         <div class="col-md-4">
             <div class="form-group">
                 <label>Banho</label>
-                <select class="form-control" name="items[${index}][coating]">
+                <select class="form-control" name="items[${index}][coating]" id="coating-select-${index}">
                     <option value="">Selecione...</option>
                     <option value="DO">Dourado</option>
                     <option value="RH">Ródio branco</option>
@@ -195,6 +269,7 @@ Nova Ordem de Serviço
         </div>
     </div>
     
+    {{-- Resto do template permanece igual --}}
     <div class="row">
         <div class="col-md-6">
             <div class="form-group">
@@ -248,6 +323,157 @@ Nova Ordem de Serviço
     </div>
 </div>
 `;
+
+    // Preview da imagem
+    function previewImage(input, index) {
+        const preview = document.getElementById(`preview-${index}`);
+        const file = input.files[0];
+
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                preview.src = e.target.result;
+                preview.style.display = 'block';
+            }
+            reader.readAsDataURL(file);
+
+            // Mostrar botão de IA
+            document.getElementById(`ai-button-${index}`).style.display = 'block';
+        } else {
+            preview.style.display = 'none';
+            document.getElementById(`ai-button-${index}`).style.display = 'none';
+        }
+    }
+
+    // Simulação de identificação por IA
+    function identifyProductWithAI(index) {
+        const fileInput = document.querySelector(`#product-${index} .product-image`);
+        const file = fileInput.files[0];
+
+        if (!file) {
+            alert('Por favor, selecione uma imagem primeiro.');
+            return;
+        }
+
+        // Mostrar loading
+        document.getElementById(`ai-loading-${index}`).style.display = 'block';
+        document.getElementById(`ai-button-${index}`).style.display = 'none';
+
+        // Simular processamento da IA (2-3 segundos)
+        setTimeout(() => {
+            // Esconder loading
+            document.getElementById(`ai-loading-${index}`).style.display = 'none';
+
+            // Simular resultado da IA baseado no "padrão" da imagem
+            const fakeAIResult = generateFakeAIResult(file);
+
+            // Mostrar resultado
+            document.getElementById(`identified-product-${index}`).innerHTML =
+                `<strong>${fakeAIResult.code}</strong> - ${fakeAIResult.name}`;
+            document.getElementById(`ai-result-${index}`).style.display = 'block';
+
+            // Armazenar resultado para uso posterior
+            window[`aiResult_${index}`] = fakeAIResult;
+
+        }, 2000 + Math.random() * 2000); // Entre 2-4 segundos
+    }
+
+    // Gerar resultado fake da IA - APENAS CÓDIGO
+    function generateFakeAIResult(file) {
+        // Simular diferentes códigos de produtos baseados em "padrões" simulados
+        const productCodes = [
+            'AN01050108RH',
+            'BR02031506DO',
+            'CO03020812NE',
+            'PU04011018CL',
+            'TO05042520RO',
+            'PE06031215RH',
+            'AL07051822DO',
+            'CH08022025MIX',
+            'AN01060109RO',
+            'BR02041507NE',
+            'CO03030813DO',
+            'PU04021019RH'
+        ];
+
+        // Escolher um código aleatório (na vida real, a IA analisaria a imagem)
+        const randomCode = productCodes[Math.floor(Math.random() * productCodes.length)];
+
+        return {
+            code: randomCode
+        };
+    }
+
+    // Usar o produto identificado pela IA
+    // Usar o produto identificado pela IA
+    function useIdentifiedProduct(index) {
+        const aiResult = window[`aiResult_${index}`];
+        if (!aiResult) return;
+
+        // Mostrar apenas o código no resultado
+        document.getElementById(`identified-product-${index}`).innerHTML =
+            `<strong>${aiResult.code}</strong>`;
+
+        // Encontrar o produto correspondente na lista
+        const productSelect = document.getElementById(`product-select-${index}`);
+        const options = productSelect.options;
+
+        for (let i = 0; i < options.length; i++) {
+            if (options[i].dataset.code === aiResult.code) {
+                productSelect.selectedIndex = i;
+
+                // Tentar preencher automaticamente o banho baseado no código
+                const coatingCode = aiResult.code.slice(-2); // Últimas 2 letras
+                const coatingSelect = document.getElementById(`coating-select-${index}`);
+
+                for (let j = 0; j < coatingSelect.options.length; j++) {
+                    if (coatingSelect.options[j].value === coatingCode) {
+                        coatingSelect.selectedIndex = j;
+                        break;
+                    }
+                }
+
+                // Feedback visual
+                showTemporaryMessage(`Produto ${aiResult.code} selecionado automaticamente!`, 'success');
+                break;
+            }
+        }
+
+        // Fechar o resultado da IA
+        document.getElementById(`ai-result-${index}`).style.display = 'none';
+        document.getElementById(`ai-button-${index}`).style.display = 'block';
+    }
+
+    // Função para decodificar o código do produto (educacional)
+    function decodeProductCode(code) {
+        const categories = {
+            'AN': 'Anel',
+            'BR': 'Brinco',
+            'CO': 'Colar',
+            'PU': 'Pulseira',
+            'TO': 'Tornozeleira',
+            'PE': 'Pingente',
+            'AL': 'Aliança',
+            'CH': 'Choker'
+        };
+
+        const coatings = {
+            'DO': 'Dourado',
+            'RH': 'Ródio Branco',
+            'RO': 'Rose',
+            'NE': 'Ródio Negro',
+            'MIX': 'Mix',
+            'CL': 'Colorido'
+        };
+
+        const category = code.substring(0, 2);
+        const coating = code.slice(-2);
+
+        return {
+            category: categories[category] || 'Desconhecido',
+            coating: coatings[coating] || 'Desconhecido'
+        };
+    }
 
     // Adicionar produto
     document.getElementById('addProduct').addEventListener('click', function() {

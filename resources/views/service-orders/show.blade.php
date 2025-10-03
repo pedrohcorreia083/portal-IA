@@ -176,9 +176,14 @@ Ordem de Serviço: {{ $serviceOrder->order_number }}
                 @endif
 
                 <div class="d-grid gap-2">
-                    <!-- Botão Imprimir - Disponível para Todos -->
-                    <a href="#" class="btn btn-success btn-block">
-                        <i class="fas fa-print"></i> Imprimir OS
+                    <!-- Visualizar PDF -->
+                    <a href="{{ route('service-orders.pdf', $serviceOrder) }}" target="_blank" class="btn btn-success btn-block">
+                        <i class="fas fa-file-pdf"></i> Visualizar PDF
+                    </a>
+
+                    <!-- Download PDF -->
+                    <a href="{{ route('service-orders.download-pdf', $serviceOrder) }}" class="btn btn-primary btn-block">
+                        <i class="fas fa-download"></i> Baixar PDF
                     </a>
 
                     <!-- Botão Editar - Disponível para Todos (mas a edição em si é restrita) -->

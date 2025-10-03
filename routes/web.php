@@ -31,6 +31,13 @@ Route::middleware(['auth'])->group(function () {
         // Atualização rápida de status
         Route::patch('/service-orders/{serviceOrder}/update-status', [ServiceOrderController::class, 'updateStatus'])->name('service-orders.update-status');
     });
+    
+    // Rotas para PDF
+    Route::get('/service-orders/{serviceOrder}/pdf', [ServiceOrderController::class, 'pdf'])
+        ->name('service-orders.pdf');
+
+    Route::get('/service-orders/{serviceOrder}/download-pdf', [ServiceOrderController::class, 'downloadPdf'])
+        ->name('service-orders.download-pdf');
 });
 
 // Se quiser uma landing page pública, pode fazer assim:
