@@ -74,7 +74,7 @@
                                 <h5 class="mb-3">
                                     <i class="fas fa-gem text-primary"></i>
                                     Produto #{{ $index + 1 }} -
-                                    {{ $item->product->name ?? 'Produto não encontrado' }}
+                                    {{ $item->identified_product_name ?? 'Produto não encontrado' }}
                                     <small class="text-muted">({{ $item->product->code ?? 'N/A' }})</small>
                                 </h5>
                             </div>

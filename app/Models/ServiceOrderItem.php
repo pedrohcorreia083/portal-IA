@@ -17,8 +17,6 @@ class ServiceOrderItem extends Model
         'services',
         'coating',
         'observations',
-        // REMOVIDO: 'status' (agora é technical_status)
-        // NOVOS CAMPOS para análise técnica
         'is_guarantee',
         'repair_price',
         'technical_status',

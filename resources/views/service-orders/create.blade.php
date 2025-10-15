@@ -128,6 +128,7 @@ Nova Ordem de Serviço
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
+
             <div class="modal-body">
                 <div class="row">
                     <div class="col-md-4">
@@ -204,6 +205,7 @@ Nova Ordem de Serviço
                     </div>
                 </div>
             </div>
+
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
             </div>
@@ -313,7 +315,7 @@ Nova Ordem de Serviço
         currentSearchResults: null
     };
 
-    // Templates (MANTIDO IGUAL)
+    // Templates
     const TEMPLATES = {
         product: (index) => `
             <div class="product-item" id="product-${index}">
@@ -332,15 +334,19 @@ Nova Ordem de Serviço
                     <div class="col-md-4">
                         <div class="form-group">
                             <label>Tipo de Produto *</label>
-                            <select class="form-control product-select" name="items[${index}][product_id]" required 
-                                    id="product-select-${index}">
-                                <option value="">Selecione...</option>
-                                ${CONFIG.products.map(product => `
-                                    <option value="${product.id}" data-code="${product.code}">
-                                        ${product.code} - ${product.name}
-                                    </option>
-                                `).join('')}
-                            </select>
+                            <input type="text" 
+                                class="form-control" 
+                                name="items[${index}][product_name]" 
+                                id="product-name-${index}" 
+                                required
+                                autocomplete="off">
+                            <input type="hidden" 
+                                name="items[${index}][product_id]" 
+                                id="product-id-${index}" 
+                                value="">
+                            <small class="form-text text-muted">
+                                Digite manualmente ou use "Localizar Peça por IA"
+                            </small>
                         </div>
                     </div>
                     
@@ -413,7 +419,7 @@ Nova Ordem de Serviço
         `
     };
 
-    // Módulo de Produtos (MANTIDO IGUAL)
+    // Módulo de Produtos
     const PRODUCTS = {
         init() {
             document.getElementById('addProduct').addEventListener('click', () => this.add());
@@ -423,6 +429,23 @@ Nova Ordem de Serviço
         add() {
             const container = document.getElementById('products-container');
             container.innerHTML += TEMPLATES.product(STATE.productIndex);
+
+            // adiciona listener para sincronizar product_id com product_name quando digitar manualmente
+            // usamos setTimeout para garantir que o elemento já exista no DOM
+            setTimeout(() => {
+                const nameInput = document.getElementById(`product-name-${STATE.productIndex}`);
+                const idInput = document.getElementById(`product-id-${STATE.productIndex}`);
+                if (nameInput && idInput) {
+                    nameInput.addEventListener('input', () => {
+                        // se não houver um product_id selecionado, mantenha o valor do name no hidden antes do submit
+                        if (!idInput.value) {
+                            // não atribuímos um id numérico, apenas guardamos a string para evitar NULL no banco
+                            idInput.value = nameInput.value.trim();
+                        }
+                    });
+                }
+            }, 50);
+
             STATE.productIndex++;
         },
 
@@ -432,37 +455,71 @@ Nova Ordem de Serviço
         },
 
         addFromAI(product, identifiedCode) {
+            // Se não há produtos, adiciona um novo
             if (document.querySelectorAll('.product-item').length === 0) {
                 this.add();
             }
 
             const lastIndex = STATE.productIndex - 1;
 
-            if (product) {
-                document.getElementById(`product-select-${lastIndex}`).value = product.id;
+            // Preenche o campo do produto
+            const productNameInput = document.getElementById(`product-name-${lastIndex}`);
+            const productIdInput = document.getElementById(`product-id-${lastIndex}`);
+            const aiCodeInput = document.getElementById(`ai-code-${lastIndex}`);
 
-                if (identifiedCode) {
-                    const coatingCode = identifiedCode.slice(-2);
-                    const coatingSelect = document.getElementById(`coating-select-${lastIndex}`);
-                    for (let option of coatingSelect.options) {
-                        if (option.value === coatingCode) {
-                            coatingSelect.value = option.value;
-                            break;
-                        }
-                    }
+            if (productNameInput && productIdInput && aiCodeInput) {
+                if (product) {
+                    // Se encontrou produto no banco, preenche com código + nome
+                    productNameInput.value = `${product.code} - ${product.name}`;
+                    productIdInput.value = product.id;
+                } else if (identifiedCode) {
+                    // Se só tem código identificado, preenche só o código
+                    productNameInput.value = identifiedCode;
+                    productIdInput.value = identifiedCode;
                 }
-            }
 
-            document.getElementById(`ai-code-${lastIndex}`).value = identifiedCode;
-            UTILS.showMessage(
-                product ? `Peça "${product.code}" adicionada com sucesso!` : 'Peça adicionada com sucesso!',
-                'success'
-            );
+                // Preenche o código da IA
+                aiCodeInput.value = identifiedCode || '';
+
+                // Preenche automaticamente o banho se tiver código
+                if (identifiedCode) {
+                    this.autoFillCoating(lastIndex, identifiedCode);
+                }
+
+                UTILS.showMessage(
+                    product ? `Peça "${product.code}" adicionada com sucesso!` :
+                    identifiedCode ? `Peça "${identifiedCode}" adicionada com sucesso!` :
+                    'Peça adicionada com sucesso!',
+                    'success'
+                );
+            } else {
+                UTILS.showMessage('Erro ao adicionar peça: campos não encontrados.', 'info');
+            }
+        },
+
+        autoFillCoating(index, productCode) {
+            const coatingSelect = document.getElementById(`coating-select-${index}`);
+            if (!coatingSelect) return;
+
+            // Extrair código do banho do final do código do produto (últimos 2 caracteres)
+            const coatingCode = productCode.slice(-2).toUpperCase();
+            const coatingMap = {
+                'DO': 'DO',
+                'RH': 'RH',
+                'RO': 'RO',
+                'NE': 'NE',
+                'MI': 'MIX',
+                'MX': 'MIX',
+                'CL': 'CL'
+            };
+
+            if (coatingMap[coatingCode]) {
+                coatingSelect.value = coatingMap[coatingCode];
+            }
         }
     };
 
-    // Módulo de IA (SIMPLIFICADO)
-    // Módulo de IA (CORRIGIDO)
+    // Módulo de IA
     const IA_SEARCH = {
         init() {
             this.setupEventListeners();
@@ -655,7 +712,7 @@ Nova Ordem de Serviço
                             <img src="${match.url}" 
                                  alt="${match.arquivo}" 
                                  class="product-thumbnail"
-                                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjRjBGMEYwIi8+CjxwYXRoIGQ9Ik0zMCAzN0MzMy44NjYgMzcgMzcgMzMuODY2IDM3IDMwQzM3IDI2LjEzNCAzMy44NjYgMjMgMzAgMjNDMjYuMTM0IDIzIDIzIDI2LjEzNCAyMyAzMEMyMyAzMy44NjYgMjYuMTM0IDM3IDMwIDM3WiIgZmlsbD0iI0RERERERCIvPgo8cGF0aCBkPSJNMTggMTdINDJWNDNIMThWMTdaIiBzdHJva2U9IiNEREREREQiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4K'">
+                                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjRjBGMEYwIi8+CjxwYXRoIGQ9Ik0zMCAzN0MzMi44NjYgMzcgMzcgMzMuODY2IDM3IDMwQzM3IDI2LjEzNCAzMy44NjYgMjMgMzAgMjNDMjYuMTM0IDIzIDIzIDI2LjEzNCAyMyAzMEMyMyAzMy44NjYgMjYuMTM0IDM3IDMwIDM3WiIgZmlsbD0iI0RERERERCIvPgo8cGF0aCBkPSJNMTggMTdINDJWNDNIMThWMTdaIiBzdHJva2U9IiNEREREREQiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4K'">
                         </div>
                         
                         <div class="flex-grow-1">
@@ -714,14 +771,7 @@ Nova Ordem de Serviço
                 const stats = this.calculateStats(matches);
                 const statsDiv = document.createElement('div');
                 statsDiv.className = 'alert alert-secondary mt-3';
-                statsDiv.innerHTML = `
-                <small>
-                    <strong>Estatísticas:</strong> 
-                    ${stats.highSimilarity} alta similaridade (>80%) | 
-                    ${stats.mediumSimilarity} média similaridade (60-80%) | 
-                    ${stats.lowSimilarity} baixa similaridade (<60%)
-                </small>
-            `;
+                statsDiv.innerHTML = `<small><strong>Estatísticas:</strong> ${stats.highSimilarity} alta similaridade (>80%) | ${stats.mediumSimilarity} média similaridade (60-80%) | ${stats.lowSimilarity} baixa similaridade (<60%)</small>`;
                 resultsList.appendChild(statsDiv);
 
             } else {
@@ -818,7 +868,8 @@ Nova Ordem de Serviço
             STATE.currentSearchResults = null;
         }
     };
-    // Utilitários (MANTIDO IGUAL)
+
+    // Utilitários
     const UTILS = {
         init() {
             this.setupMasks();
@@ -902,11 +953,30 @@ Nova Ordem de Serviço
         }
     };
 
-    // Inicialização
+    // Antes do submit: garantir que product_id não fique null
     document.addEventListener('DOMContentLoaded', function() {
         PRODUCTS.init();
         IA_SEARCH.init();
         UTILS.init();
+
+        const form = document.getElementById('serviceOrderForm');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                // para cada product-item, garanta que o hidden product-id não esteja vazio
+                document.querySelectorAll('.product-item').forEach(item => {
+                    const nameInput = item.querySelector('[id^="product-name-"]');
+                    const idInput = item.querySelector('[id^="product-id-"]');
+                    if (nameInput && idInput) {
+                        const nameVal = (nameInput.value || '').trim();
+                        const idVal = (idInput.value || '').toString().trim();
+                        // Se id estiver vazio ou for string vazia, preenche com o nome (evita NULL no banco)
+                        if (!idVal && nameVal) {
+                            idInput.value = nameVal;
+                        }
+                    }
+                });
+            });
+        }
     });
 </script>
 @endpush

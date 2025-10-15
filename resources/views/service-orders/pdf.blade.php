@@ -281,9 +281,6 @@
                         @else
                         <span class="text-muted">Produto não especificado</span>
                         @endif
-                        @if($item->ai_identified_code)
-                        <br><small class="text-muted">IA: {{ $item->ai_identified_code }}</small>
-                        @endif
                     </td>
                     <td>
                         @if($item->coating_name)

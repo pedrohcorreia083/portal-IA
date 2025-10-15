@@ -26,11 +26,21 @@ class ServiceOrderController extends Controller
         $this->middleware('auth');
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        $serviceOrders = ServiceOrder::with('items')->latest()->paginate(10);
+        $query = ServiceOrder::query();
+
+        $query->when($request->order_number, fn($q, $v) => $q->where('order_number', 'like', "%$v%"));
+        $query->when($request->client_name, fn($q, $v) => $q->where('client_name', 'like', "%$v%"));
+        $query->when($request->consultant_name, fn($q, $v) => $q->where('consultant_name', 'like', "%$v%"));
+        $query->when($request->origin, fn($q, $v) => $q->where('origin', $v));
+        $query->when($request->status, fn($q, $v) => $q->where('status', $v));
+
+        $serviceOrders = $query->orderByDesc('id')->paginate(10);
+
         return view('service-orders.index', compact('serviceOrders'));
     }
+
 
     public function create()
     {
@@ -42,6 +52,7 @@ class ServiceOrderController extends Controller
 
     public function store(Request $request)
     {
+
         try {
             $validated = $request->validate([
                 'client_name' => 'required|string|max:255',
@@ -53,8 +64,7 @@ class ServiceOrderController extends Controller
                 'order_date' => 'required|date',
                 'observations' => 'nullable|string',
                 'items' => 'required|array|min:1',
-                'items.*.product_id' => 'required|exists:products,id',
-                'items.*.services' => 'required|array|min:1',
+                'items.*.product_name' => 'required|string|max:255',
                 'items.*.coating' => 'nullable|in:DO,RH,RO,NE,MIX,CL',
                 'items.*.observations' => 'nullable|string',
                 'items.*.product_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
@@ -70,7 +80,8 @@ class ServiceOrderController extends Controller
 
             foreach ($request->items as $itemData) {
                 $item = new ServiceOrderItem([
-                    'product_id' => $itemData['product_id'],
+                    'identified_product_name' => $itemData['product_name'],
+                    'product_id'   => $item['product_id'] ?? null,
                     'services' => $itemData['services'],
                     'coating' => $itemData['coating'] ?? null,
                     'observations' => $itemData['observations'] ?? null,
@@ -109,18 +120,6 @@ class ServiceOrderController extends Controller
     // NOVO MÉTODO: Tela de análise técnica
     public function analysis(ServiceOrder $serviceOrder)
     {
-        // Debug manual
-        logger()->info('=== ACESSANDO ANÁLISE TÉCNICA ===', [
-            'user_id' => auth()->id(),
-            'user_name' => auth()->user()->name,
-            'user_role' => auth()->user()->role ?? 'N/A',
-            'isAdmin' => auth()->user()->isAdmin(),
-            'isTechnical' => auth()->user()->isTechnical(),
-            'service_order_id' => $serviceOrder->id,
-            'service_order_status' => $serviceOrder->status,
-            'canBeAnalyzed' => $serviceOrder->canBeAnalyzed()
-        ]);
-
         $serviceOrder->load('items.product');
         return view('service-orders.analysis', compact('serviceOrder'));
     }
@@ -188,7 +187,7 @@ class ServiceOrderController extends Controller
 
             $tempPath = $request->file('image')->getPathname();
 
-            $response = Http::timeout(60)->attach(
+            $response = Http::timeout(5000)->attach(
                 'file',
                 file_get_contents($tempPath),
                 'image.jpg'
@@ -276,14 +275,19 @@ class ServiceOrderController extends Controller
 
     public function edit(ServiceOrder $serviceOrder)
     {
+
+
         if (!auth()->user()->isAdmin()) {
             return redirect()->route('service-orders.show', $serviceOrder)
                 ->with('warning', 'Apenas administradores podem editar ordens de serviço.');
         }
 
-        $products = Product::where('is_active', true)->get();
+        // $products = Product::where('is_active', true)->get();
+        //         dd($products);
+
         $serviceOrder->load('items');
-        return view('service-orders.edit', compact('serviceOrder', 'products'));
+
+        return view('service-orders.edit', compact('serviceOrder'));
     }
 
     public function update(Request $request, ServiceOrder $serviceOrder)
@@ -299,7 +303,7 @@ class ServiceOrderController extends Controller
             'client_phone' => 'nullable|string|max:20',
             'consultant_name' => 'required|string|max:255',
             'client_code' => 'required|string|max:50',
-            'origin' => 'required|in:SHOWROOM SP,SHOWROOM LIMEIRA,SHOWROOM ON-LINE',
+            'origin' => 'required|in:SHOWROOM SP,SHOWROOM LIMEIRA,SHOWROOM ON-LINE,E-COMMERCE,EVENTOS',
             'order_date' => 'required|date',
             'is_guarantee' => 'boolean',
             'observations' => 'nullable|string',
@@ -342,8 +346,7 @@ class ServiceOrderController extends Controller
         $pdf = PDF::loadView('service-orders.pdf', compact('serviceOrder'));
 
         $pdf->setPaper('A4', 'portrait');
-        $pdf->setOption('enable_html5_parser', true);
-        $pdf->setOption('enable_remote', true);
+
 
         return $pdf->stream("OS-{$serviceOrder->order_number}.pdf");
     }

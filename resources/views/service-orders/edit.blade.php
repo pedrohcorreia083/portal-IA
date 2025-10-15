@@ -96,15 +96,6 @@ Editar Ordem de Serviço: {{ $serviceOrder->order_number }}
                                 </select>
                             </div>
                         </div>
-                        <div class="col-md-3">
-                            <div class="form-group">
-                                <div class="custom-control custom-checkbox mt-4">
-                                    <input type="checkbox" class="custom-control-input" id="is_guarantee" name="is_guarantee" value="1"
-                                        {{ old('is_guarantee', $serviceOrder->is_guarantee) ? 'checked' : '' }}>
-                                    <label class="custom-control-label" for="is_guarantee">É Garantia?</label>
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
                     <div class="form-group">
@@ -127,9 +118,9 @@ Editar Ordem de Serviço: {{ $serviceOrder->order_number }}
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
-                                    <label>Produto</label>
-                                    <input type="text" class="form-control" value="{{ $item->product->code }} - {{ $item->product->name }}" readonly>
-                                    <small class="form-text text-muted">Produto não pode ser alterado</small>
+                                    <label>Código / Nome do Produto</label>
+                                    <input type="text" class="form-control" value="{{ $item->identified_product_name }}" readonly>
+                                    <small class="form-text text-muted">Informe o código ou nome do produto (opcional)</small>
 
                                     @if($item->product_image)
                                     <div class="mt-2">
@@ -146,7 +137,7 @@ Editar Ordem de Serviço: {{ $serviceOrder->order_number }}
                                         <option value="">Selecione...</option>
                                         <option value="DO" {{ $item->coating == 'DO' ? 'selected' : '' }}>Dourado</option>
                                         <option value="RH" {{ $item->coating == 'RH' ? 'selected' : '' }}>Ródio branco</option>
-                                        <option value="RO" {{ $item->coating == 'RO' ? 'selected' : '' }}>Redo</option>
+                                        <option value="RO" {{ $item->coating == 'RO' ? 'selected' : '' }}>Ródio rose</option>
                                         <option value="NE" {{ $item->coating == 'NE' ? 'selected' : '' }}>Ródio negro</option>
                                         <option value="MIX" {{ $item->coating == 'MIX' ? 'selected' : '' }}>Mix de banhos</option>
                                         <option value="CL" {{ $item->coating == 'CL' ? 'selected' : '' }}>Colorido</option>
@@ -159,54 +150,18 @@ Editar Ordem de Serviço: {{ $serviceOrder->order_number }}
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label>Serviços *</label>
+                                    @php
+                                    $currentServices = $item->services ?? [];
+                                    @endphp
                                     <div>
-                                        @php
-                                        $currentServices = $item->services ?? [];
-                                        @endphp
+                                        @foreach (['B' => 'B - Banhar', 'RP' => 'RP - Repor pedra', 'F' => 'F - Trocar fecho', 'L' => 'L - Limpar', 'S' => 'S - Soldar', 'RM' => 'RM - Remontar'] as $code => $label)
                                         <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="checkbox" name="items[{{ $index }}][services][]" value="B"
-                                                id="service-b-{{ $index }}" {{ in_array('B', $currentServices) ? 'checked' : '' }}>
-                                            <label class="form-check-label" for="service-b-{{ $index }}">B - Banhar</label>
+                                            <input class="form-check-input" type="checkbox" name="items[{{ $index }}][services][]" value="{{ $code }}"
+                                                id="service-{{ $code }}-{{ $index }}" {{ in_array($code, $currentServices) ? 'checked' : '' }}>
+                                            <label class="form-check-label" for="service-{{ $code }}-{{ $index }}">{{ $label }}</label>
                                         </div>
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="checkbox" name="items[{{ $index }}][services][]" value="RP"
-                                                id="service-rp-{{ $index }}" {{ in_array('RP', $currentServices) ? 'checked' : '' }}>
-                                            <label class="form-check-label" for="service-rp-{{ $index }}">RP - Repor pedra</label>
-                                        </div>
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="checkbox" name="items[{{ $index }}][services][]" value="F"
-                                                id="service-f-{{ $index }}" {{ in_array('F', $currentServices) ? 'checked' : '' }}>
-                                            <label class="form-check-label" for="service-f-{{ $index }}">F - Trocar fecho</label>
-                                        </div>
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="checkbox" name="items[{{ $index }}][services][]" value="L"
-                                                id="service-l-{{ $index }}" {{ in_array('L', $currentServices) ? 'checked' : '' }}>
-                                            <label class="form-check-label" for="service-l-{{ $index }}">L - Limpar</label>
-                                        </div>
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="checkbox" name="items[{{ $index }}][services][]" value="S"
-                                                id="service-s-{{ $index }}" {{ in_array('S', $currentServices) ? 'checked' : '' }}>
-                                            <label class="form-check-label" for="service-s-{{ $index }}">S - Soldar</label>
-                                        </div>
-                                        <div class="form-check form-check-inline">
-                                            <input class="form-check-input" type="checkbox" name="items[{{ $index }}][services][]" value="RM"
-                                                id="service-rm-{{ $index }}" {{ in_array('RM', $currentServices) ? 'checked' : '' }}>
-                                            <label class="form-check-label" for="service-rm-{{ $index }}">RM - Remontar</label>
-                                        </div>
+                                        @endforeach
                                     </div>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label>Status</label>
-                                    <select class="form-control" name="items[{{ $index }}][status]">
-                                        <option value="">Selecione...</option>
-                                        <option value="RP" {{ $item->status == 'RP' ? 'selected' : '' }}>RP - Reparo realizado</option>
-                                        <option value="SC" {{ $item->status == 'SC' ? 'selected' : '' }}>SC - Sem conserto</option>
-                                        <option value="GTC" {{ $item->status == 'GTC' ? 'selected' : '' }}>GTC - Garantia troca física</option>
-                                        <option value="GCG" {{ $item->status == 'GCG' ? 'selected' : '' }}>GCG - Garantia crédito gerado</option>
-                                        <option value="N" {{ $item->status == 'N' ? 'selected' : '' }}>N - Não é LBF</option>
-                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -215,9 +170,6 @@ Editar Ordem de Serviço: {{ $serviceOrder->order_number }}
                             <label>Observações do Item</label>
                             <textarea class="form-control" name="items[{{ $index }}][observations]" rows="2">{{ $item->observations }}</textarea>
                         </div>
-
-                        <!-- Campos hidden para manter o product_id -->
-                        <input type="hidden" name="items[{{ $index }}][product_id]" value="{{ $item->product_id }}">
                     </div>
                     @endforeach
                 </div>

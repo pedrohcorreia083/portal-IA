@@ -29,8 +29,6 @@ class ServiceOrder extends Model
         'order_date',
         'observations',
         'status',
-        // REMOVIDO: 'is_guarantee' (agora é por produto)
-        // NOVOS CAMPOS para controle da análise
         'technical_analyst_id',
         'analysis_date',
     ];

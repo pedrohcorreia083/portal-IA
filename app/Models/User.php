@@ -76,7 +76,6 @@ class User extends Authenticatable
 
     public function isTechnical()
     {
-        // Se admin também é considerado técnico
         return $this->isAdmin() || $this->type === 'technical';
     }
 }

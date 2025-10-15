@@ -20,6 +20,53 @@ Ordens de Serviço
             </a>
         </div>
     </div>
+
+    <!-- 🔍 FILTROS -->
+    <div class="card-body border-bottom">
+        <form method="GET" action="{{ route('service-orders.index') }}">
+            <div class="row">
+                <div class="col-md-3 mb-2">
+                    <input type="text" name="order_number" class="form-control"
+                        placeholder="Nº OS"
+                        value="{{ request('order_number') }}">
+                </div>
+
+                <div class="col-md-3 mb-2">
+                    <input type="text" name="client_name" class="form-control"
+                        placeholder="Cliente"
+                        value="{{ request('client_name') }}">
+                </div>
+
+                <div class="col-md-3 mb-2">
+                    <input type="text" name="consultant_name" class="form-control"
+                        placeholder="Consultor(a)"
+                        value="{{ request('consultant_name') }}">
+                </div>
+
+                <div class="col-md-3 mb-2">
+                    <select name="origin" class="form-control">
+                        <option value="">Origem</option>
+                        <option value="SHOWROOM SP" {{ request('origin') == 'SHOWROOM SP' ? 'selected' : '' }}>SHOWROOM SP</option>
+                        <option value="SHOWROOM LIMEIRA" {{ request('origin') == 'SHOWROOM LIMEIRA' ? 'selected' : '' }}>SHOWROOM LIMEIRA</option>
+                        <option value="SHOWROOM ON-LINE" {{ request('origin') == 'SHOWROOM ON-LINE' ? 'selected' : '' }}>SHOWROOM ON-LINE</option>
+                        <option value="E-COMMERCE" {{ request('origin') == 'E-COMMERCE' ? 'selected' : '' }}>E-COMMERCE</option>
+                        <option value="EVENTOS" {{ request('origin') == 'EVENTOS' ? 'selected' : '' }}>EVENTOS</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="mt-2 text-right">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    <i class="fas fa-search"></i> Filtrar
+                </button>
+                <a href="{{ route('service-orders.index') }}" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-times"></i> Limpar
+                </a>
+            </div>
+        </form>
+    </div>
+    <!-- /FILTROS -->
+
     <div class="card-body p-0">
         <table class="table table-striped">
             <thead>

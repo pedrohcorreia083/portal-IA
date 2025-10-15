@@ -52,33 +52,4 @@ Route::middleware(['auth'])->group(function () {
 
     Route::get('/service-orders/{serviceOrder}/download-pdf', [ServiceOrderController::class, 'downloadPdf'])
         ->name('service-orders.download-pdf');
-
-
-    // Adicione isso no routes/web.php
-
-    Route::get('/debug/my-user', function () {
-        $user = auth()->user();
-
-        if (!$user) {
-            return response()->json(['error' => 'Não autenticado']);
-        }
-
-        return response()->json([
-            'id' => $user->id,
-            'name' => $user->name,
-            'email' => $user->email,
-            'role' => $user->role ?? 'N/A',
-            'isAdmin' => method_exists($user, 'isAdmin') ? $user->isAdmin() : 'Método não existe',
-            'isTechnical' => method_exists($user, 'isTechnical') ? $user->isTechnical() : 'Método não existe',
-            'all_attributes' => $user->toArray()
-        ]);
-    });
-
-
-    
 });
-
-// Se quiser uma landing page pública, pode fazer assim:
-// Route::get('/', function () {
-//     return view('welcome');
-// })->name('welcome');

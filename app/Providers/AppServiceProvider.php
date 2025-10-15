@@ -38,12 +38,10 @@ class AppServiceProvider extends ServiceProvider
 
     private function registerGates(): void
     {
-        // Gate para análise técnica - CORRIGIDO
         Gate::define('technical-analysis', function (User $user, ServiceOrder $serviceOrder) {
             return ($user->isAdmin() || $user->isTechnical()) && $serviceOrder->canBeAnalyzed();
         });
 
-        // ... outros gates permanecem iguais
         Gate::define('update-service-order-status', function (User $user) {
             return $user->isAdmin();
         });
@@ -56,6 +54,7 @@ class AppServiceProvider extends ServiceProvider
             return $user->isAdmin();
         });
     }
+
     /**
      * Validar CNPJ (seu código atual)
      */
