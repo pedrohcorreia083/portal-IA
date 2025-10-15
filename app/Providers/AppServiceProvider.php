@@ -4,21 +4,29 @@ namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Gate;
+use App\Models\ServiceOrder;
+use App\Models\User;
 
 class AppServiceProvider extends ServiceProvider
 {
     public function boot(): void
     {
-        Validator::extend('cnpj', function ($attribute, $value, $parameters, $validator) {
-            // Remover caracteres não numéricos
-            $cnpj = preg_replace('/[^0-9]/', '', $value);
+        $this->registerCustomValidators();
+        $this->registerGates();
+    }
 
-            // Verificar se tem 14 dígitos
+    /**
+     * Registrar validadores customizados
+     */
+    private function registerCustomValidators(): void
+    {
+        // Seu código atual de validação CNPJ...
+        Validator::extend('cnpj', function ($attribute, $value, $parameters, $validator) {
+            $cnpj = preg_replace('/[^0-9]/', '', $value);
             if (strlen($cnpj) != 14) {
                 return false;
             }
-
-            // Validar CNPJ
             return $this->validateCnpj($cnpj);
         });
 
@@ -27,12 +35,32 @@ class AppServiceProvider extends ServiceProvider
         });
     }
 
+
+    private function registerGates(): void
+    {
+        // Gate para análise técnica - CORRIGIDO
+        Gate::define('technical-analysis', function (User $user, ServiceOrder $serviceOrder) {
+            return ($user->isAdmin() || $user->isTechnical()) && $serviceOrder->canBeAnalyzed();
+        });
+
+        // ... outros gates permanecem iguais
+        Gate::define('update-service-order-status', function (User $user) {
+            return $user->isAdmin();
+        });
+
+        Gate::define('edit-service-order', function (User $user) {
+            return $user->isAdmin();
+        });
+
+        Gate::define('delete-service-order', function (User $user) {
+            return $user->isAdmin();
+        });
+    }
     /**
-     * Validar CNPJ
+     * Validar CNPJ (seu código atual)
      */
     private function validateCnpj($cnpj): bool
     {
-        // CNPJs conhecidamente inválidos
         $invalidos = [
             '00000000000000',
             '11111111111111',
@@ -50,7 +78,6 @@ class AppServiceProvider extends ServiceProvider
             return false;
         }
 
-        // Validar dígitos verificadores
         for ($t = 12; $t < 14; $t++) {
             for ($d = 0, $p = $t - 7, $c = 0; $c < $t; $c++) {
                 $d += $cnpj[$c] * $p;

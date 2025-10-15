@@ -30,14 +30,52 @@ Route::middleware(['auth'])->group(function () {
         Route::resource('service-orders', ServiceOrderController::class);
         // Atualização rápida de status
         Route::patch('/service-orders/{serviceOrder}/update-status', [ServiceOrderController::class, 'updateStatus'])->name('service-orders.update-status');
+        Route::post('/service-orders/identify', [ServiceOrderController::class, 'identifyProduct'])
+            ->name('service-orders.identify');
+
+        Route::get('/service-orders/{serviceOrder}/analysis', [ServiceOrderController::class, 'analysis'])
+            ->name('service-orders.analysis')
+            ->middleware('can:technical-analysis,serviceOrder');
+
+        // Rota alternativa para teste - REMOVA DEPOIS
+        Route::get('/service-orders/{serviceOrder}/analysis-test', [ServiceOrderController::class, 'analysis'])
+            ->name('service-orders.analysis-test');
+
+        Route::post('/service-orders/{serviceOrder}/analysis', [ServiceOrderController::class, 'saveAnalysis'])
+            ->name('service-orders.save-analysis')
+            ->middleware('can:technical-analysis,serviceOrder');
     });
-    
+
     // Rotas para PDF
     Route::get('/service-orders/{serviceOrder}/pdf', [ServiceOrderController::class, 'pdf'])
         ->name('service-orders.pdf');
 
     Route::get('/service-orders/{serviceOrder}/download-pdf', [ServiceOrderController::class, 'downloadPdf'])
         ->name('service-orders.download-pdf');
+
+
+    // Adicione isso no routes/web.php
+
+    Route::get('/debug/my-user', function () {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json(['error' => 'Não autenticado']);
+        }
+
+        return response()->json([
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->role ?? 'N/A',
+            'isAdmin' => method_exists($user, 'isAdmin') ? $user->isAdmin() : 'Método não existe',
+            'isTechnical' => method_exists($user, 'isTechnical') ? $user->isTechnical() : 'Método não existe',
+            'all_attributes' => $user->toArray()
+        ]);
+    });
+
+
+    
 });
 
 // Se quiser uma landing page pública, pode fazer assim:

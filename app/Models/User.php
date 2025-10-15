@@ -50,12 +50,6 @@ class User extends Authenticatable
         return $query->where('type', 'user');
     }
 
-    // Métodos de verificação
-    public function isAdmin(): bool
-    {
-        return $this->type === 'admin';
-    }
-
     public function isUser(): bool
     {
         return $this->type === 'user';
@@ -73,5 +67,16 @@ class User extends Authenticatable
         }
 
         return in_array($permission, $this->permissions ?? []);
+    }
+
+    public function isAdmin()
+    {
+        return $this->type === 'admin';
+    }
+
+    public function isTechnical()
+    {
+        // Se admin também é considerado técnico
+        return $this->isAdmin() || $this->type === 'technical';
     }
 }

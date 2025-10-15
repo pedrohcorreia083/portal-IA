@@ -17,7 +17,7 @@ Nova Ordem de Serviço
         <form action="{{ route('service-orders.store') }}" method="POST" enctype="multipart/form-data" id="serviceOrderForm">
             @csrf
 
-            <!-- Cabeçalho da OS -->
+            <!-- Dados do Cliente -->
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">Dados do Cliente</h3>
@@ -74,15 +74,9 @@ Nova Ordem de Serviço
                                     <option value="SHOWROOM SP">SHOWROOM SP</option>
                                     <option value="SHOWROOM LIMEIRA">SHOWROOM LIMEIRA</option>
                                     <option value="SHOWROOM ON-LINE">SHOWROOM ON-LINE</option>
+                                    <option value="E-COMMERCE">E-COMMERCE</option>
+                                    <option value="EVENTOS">EVENTOS</option>
                                 </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <div class="custom-control custom-checkbox mt-4">
-                                    <input type="checkbox" class="custom-control-input" id="is_guarantee" name="is_guarantee" value="1">
-                                    <label class="custom-control-label" for="is_guarantee">É Garantia?</label>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -94,12 +88,15 @@ Nova Ordem de Serviço
                 </div>
             </div>
 
-            <!-- Itens da OS -->
+            <!-- Produtos e Serviços -->
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">Produtos e Serviços</h3>
                     <button type="button" class="btn btn-primary btn-sm float-right" id="addProduct">
                         <i class="fas fa-plus"></i> Adicionar Produto
+                    </button>
+                    <button type="button" class="btn btn-info btn-sm float-right mr-2" data-toggle="modal" data-target="#locateProductModal">
+                        <i class="fas fa-search"></i> Localizar Peça por IA
                     </button>
                 </div>
                 <div class="card-body">
@@ -120,463 +117,796 @@ Nova Ordem de Serviço
         </form>
     </div>
 </div>
+
+<!-- Modal Localizar Peça por IA (SIMPLIFICADO) -->
+<div class="modal fade" id="locateProductModal" tabindex="-1" role="dialog" aria-labelledby="locateProductModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="locateProductModalLabel">Localizar Peça</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <!-- Upload da Imagem -->
+                        <div class="form-group">
+                            <label for="searchImage">Foto da Peça *</label>
+                            <div class="custom-file">
+                                <input type="file" class="custom-file-input" id="searchImage" accept="image/*">
+                                <label class="custom-file-label" for="searchImage">Selecione a imagem...</label>
+                            </div>
+                            <small class="form-text text-muted">Tire uma foto nítida da peça que deseja localizar</small>
+
+                            <!-- Preview da Imagem -->
+                            <div class="mt-3 text-center">
+                                <img id="searchImagePreview" class="img-fluid rounded" style="max-height: 200px; display: none;" alt="Preview da imagem">
+                            </div>
+                        </div>
+
+                        <!-- Categoria -->
+                        <div class="form-group">
+                            <label for="searchCategory">Categoria *</label>
+                            <select class="form-control" id="searchCategory" required>
+                                <option value="">Selecione a categoria...</option>
+                                @foreach($categoriasPrincipais as $categoria)
+                                <option value="{{ $categoria }}">{{ $categoria }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Botão de Busca -->
+                        <button type="button" class="btn btn-primary btn-block" id="searchButton" disabled>
+                            <i class="fas fa-search"></i> Localizar Peça
+                        </button>
+                    </div>
+
+                    <div class="col-md-8">
+                        <!-- Resultados da Busca -->
+                        <div id="searchResults" style="display: none;">
+                            <h6>Resultados da Busca:</h6>
+
+                            <div id="resultsList" class="mb-3">
+                                <!-- Resultados serão inseridos aqui -->
+                            </div>
+
+                            <div class="form-group">
+                                <label>Selecione a peça identificada:</label>
+                                <select class="form-control" id="productSelection" size="4">
+                                    <option value="">Selecione uma peça...</option>
+                                </select>
+                                <small class="form-text text-muted">
+                                    Você também pode clicar diretamente nos resultados acima ou selecionar aqui
+                                </small>
+                            </div>
+
+                            <button type="button" class="btn btn-success btn-block" id="addToOrderButton" disabled>
+                                <i class="fas fa-plus"></i> Adicionar à Ordem de Serviço
+                            </button>
+                        </div>
+
+                        <!-- Loading -->
+                        <div id="searchLoading" class="text-center" style="display: none;">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="sr-only">Processando...</span>
+                            </div>
+                            <p class="mt-2">Analisando imagem com IA...</p>
+                            <small class="text-muted">Isso pode levar alguns segundos</small>
+                        </div>
+
+                        <!-- Mensagem de Erro -->
+                        <div id="searchError" class="alert alert-danger" style="display: none;">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span id="errorMessage"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Fechar</button>
+            </div>
+        </div>
+    </div>
+</div>
 @endsection
 
 @push('css')
 <style>
-    .product-item {
+    .result-item {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 10px;
+        cursor: pointer;
+        transition: all 0.3s;
+        background: white;
+    }
+
+    .result-item:hover {
+        background-color: #f8f9fa;
+        border-color: #007bff;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .result-item.selected {
+        background-color: #e3f2fd !important;
+        border-color: #007bff;
+        box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+    }
+
+    .similarity-badge {
+        font-size: 0.8em;
+        font-weight: bold;
+        padding: 6px 10px;
+    }
+
+    .product-thumbnail {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 6px;
+        border: 2px solid #e9ecef;
+        transition: all 0.3s;
+    }
+
+    .result-item:hover .product-thumbnail {
+        border-color: #007bff;
+        transform: scale(1.05);
+    }
+
+    .result-item.selected .product-thumbnail {
+        border-color: #007bff;
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.4);
+    }
+
+    .border-left-success {
+        border-left: 4px solid #28a745 !important;
+    }
+
+    .border-left-warning {
+        border-left: 4px solid #ffc107 !important;
+    }
+
+    .border-left-danger {
+        border-left: 4px solid #dc3545 !important;
+    }
+
+    #resultsList {
+        max-height: 500px;
+        overflow-y: auto;
         border: 1px solid #dee2e6;
-        border-radius: 0.25rem;
-        padding: 1rem;
-        margin-bottom: 1rem;
+        border-radius: 8px;
+        padding: 15px;
         background: #f8f9fa;
     }
 
-    .remove-product {
-        color: #dc3545;
-        cursor: pointer;
+    .text-info {
+        font-size: 0.85em;
     }
 
-    .product-item {
-        border: 1px solid #dee2e6;
-        border-radius: 0.25rem;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        background: #f8f9fa;
+    .text-info:hover {
+        text-decoration: underline;
     }
 
-    .remove-product {
-        color: #dc3545;
-        cursor: pointer;
-    }
-
-    .image-preview {
-        max-width: 150px;
-        max-height: 150px;
-        margin-top: 10px;
+    .price-field {
         display: none;
-    }
-
-    .ai-loading {
-        display: none;
-        color: #007bff;
-    }
-
-    .ai-result {
-        display: none;
-        background: #d4edda;
-        border: 1px solid #c3e6cb;
-        border-radius: 4px;
-        padding: 10px;
-        margin-top: 10px;
-    }
-
-    .identified-product {
-        background: #fff3cd;
-        border: 1px solid #ffeaa7;
-        border-radius: 4px;
-        padding: 8px;
-        margin-top: 5px;
     }
 </style>
 @endpush
 
 @push('js')
 <script>
-    let productIndex = 0;
-    const products = @json($products);
-
-    // Template atualizado para incluir IA
-    const productTemplate = (index) => `
-<div class="product-item" id="product-${index}">
-    <div class="row">
-        <div class="col-md-11">
-            <h5>Produto #${index + 1}</h5>
-        </div>
-        <div class="col-md-1 text-right">
-            <button type="button" class="btn btn-danger btn-sm remove-product" onclick="removeProduct(${index})">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-    </div>
-    
-    <div class="row">
-        <div class="col-md-4">
-            <div class="form-group">
-                <label>Foto do Produto</label>
-                <input type="file" class="form-control-file product-image" 
-                       name="items[${index}][product_image]" 
-                       accept="image/*"
-                       onchange="previewImage(this, ${index})">
-                <small class="form-text text-muted">Tire uma foto do produto para identificação por IA</small>
-                
-                <!-- Preview da imagem -->
-                <img id="preview-${index}" class="image-preview" alt="Preview">
-                
-                <!-- Botão de identificação por IA -->
-                <button type="button" class="btn btn-info btn-sm mt-2" onclick="identifyProductWithAI(${index})" 
-                        id="ai-button-${index}">
-                    <i class="fas fa-robot"></i> Identificar com IA
-                </button>
-                
-                <!-- Loading da IA -->
-                <div class="ai-loading" id="ai-loading-${index}">
-                    <i class="fas fa-spinner fa-spin"></i> Analisando imagem...
-                </div>
-                
-                <!-- Resultado da IA -->
-                <div class="ai-result" id="ai-result-${index}">
-                    <i class="fas fa-check-circle text-success"></i>
-                    <strong>Produto identificado:</strong>
-                    <div class="identified-product" id="identified-product-${index}"></div>
-                    <button type="button" class="btn btn-success btn-sm mt-2" 
-                            onclick="useIdentifiedProduct(${index})">
-                        <i class="fas fa-check"></i> Usar este produto
-                    </button>
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="form-group">
-                <label>Tipo de Produto *</label>
-                    <select class="form-control product-select" name="items[${index}][product_id]" required 
-                            onchange="updateProductInfo(${index}, this.value)" id="product-select-${index}">
-                        <option value="">Selecione...</option>
-                        ${products.map(product => `
-                            <option value="${product.id}" data-code="${product.code}">
-                                ${product.code}
-                            </option>
-                        `).join('')}
-                    </select>
-                <small class="form-text text-muted">Ou use a identificação por IA acima</small>
-            </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="form-group">
-                <label>Banho</label>
-                <select class="form-control" name="items[${index}][coating]" id="coating-select-${index}">
-                    <option value="">Selecione...</option>
-                    <option value="DO">Dourado</option>
-                    <option value="RH">Ródio branco</option>
-                    <option value="RO">Rose</option>
-                    <option value="NE">Ródio negro</option>
-                    <option value="MIX">Mix de banhos</option>
-                    <option value="CL">Colorido</option>
-                </select>
-            </div>
-        </div>
-    </div>
-    
-    {{-- Resto do template permanece igual --}}
-    <div class="row">
-        <div class="col-md-6">
-            <div class="form-group">
-                <label>Serviços *</label>
-                <div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" name="items[${index}][services][]" value="B" id="service-b-${index}">
-                        <label class="form-check-label" for="service-b-${index}">B - Banhar</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" name="items[${index}][services][]" value="RP" id="service-rp-${index}">
-                        <label class="form-check-label" for="service-rp-${index}">RP - Repor pedra</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" name="items[${index}][services][]" value="F" id="service-f-${index}">
-                        <label class="form-check-label" for="service-f-${index}">F - Trocar fecho</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" name="items[${index}][services][]" value="L" id="service-l-${index}">
-                        <label class="form-check-label" for="service-l-${index}">L - Limpar</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" name="items[${index}][services][]" value="S" id="service-s-${index}">
-                        <label class="form-check-label" for="service-s-${index}">S - Soldar</label>
-                    </div>
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" name="items[${index}][services][]" value="RM" id="service-rm-${index}">
-                        <label class="form-check-label" for="service-rm-${index}">RM - Remontar</label>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="form-group">
-                <label>Status</label>
-                <select class="form-control" name="items[${index}][status]">
-                    <option value="">Selecione...</option>
-                    <option value="RP">RP - Reparo realizado</option>
-                    <option value="SC">SC - Sem comentário</option>
-                    <option value="GTC">GTC - Garantia troca física</option>
-                    <option value="GCG">GCG - Garantia crédito gerado</option>
-                    <option value="N">N - Não é LBF</option>
-                </select>
-            </div>
-        </div>
-    </div>
-    
-    <div class="form-group">
-        <label>Observações do Item</label>
-        <textarea class="form-control" name="items[${index}][observations]" rows="2"></textarea>
-    </div>
-</div>
-`;
-
-    // Preview da imagem
-    function previewImage(input, index) {
-        const preview = document.getElementById(`preview-${index}`);
-        const file = input.files[0];
-
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                preview.src = e.target.result;
-                preview.style.display = 'block';
-            }
-            reader.readAsDataURL(file);
-
-            // Mostrar botão de IA
-            document.getElementById(`ai-button-${index}`).style.display = 'block';
-        } else {
-            preview.style.display = 'none';
-            document.getElementById(`ai-button-${index}`).style.display = 'none';
+    // Configurações globais (SIMPLIFICADO)
+    const CONFIG = {
+        products: @json($products),
+        apiRoutes: {
+            identify: '{{ route("service-orders.identify") }}'
         }
-    }
+    };
 
-    // Simulação de identificação por IA
-    // Na função identifyProductWithAI, atualize para mostrar a origem:
-    function identifyProductWithAI(index) {
-        const fileInput = document.querySelector(`#product-${index} .product-image`);
-        const file = fileInput.files[0];
+    // Estado da aplicação
+    const STATE = {
+        productIndex: 0,
+        currentSearchResults: null
+    };
 
-        if (!file) {
-            alert('Por favor, selecione uma imagem primeiro.');
-            return;
-        }
+    // Templates (MANTIDO IGUAL)
+    const TEMPLATES = {
+        product: (index) => `
+            <div class="product-item" id="product-${index}">
+                <div class="row">
+                    <div class="col-md-11">
+                        <h5>Produto #${index + 1}</h5>
+                    </div>
+                    <div class="col-md-1 text-right">
+                        <button type="button" class="btn btn-danger btn-sm remove-product" onclick="PRODUCTS.remove(${index})">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Tipo de Produto *</label>
+                            <select class="form-control product-select" name="items[${index}][product_id]" required 
+                                    id="product-select-${index}">
+                                <option value="">Selecione...</option>
+                                ${CONFIG.products.map(product => `
+                                    <option value="${product.id}" data-code="${product.code}">
+                                        ${product.code} - ${product.name}
+                                    </option>
+                                `).join('')}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Banho</label>
+                            <select class="form-control" name="items[${index}][coating]" id="coating-select-${index}">
+                                <option value="">Selecione...</option>
+                                <option value="DO">Dourado</option>
+                                <option value="RH">Ródio branco</option>
+                                <option value="RO">Rose</option>
+                                <option value="NE">Ródio negro</option>
+                                <option value="MIX">Mix de banhos</option>
+                                <option value="CL">Colorido</option>
+                            </select>
+                        </div>
+                    </div>
 
-        // Mostrar loading
-        document.getElementById(`ai-loading-${index}`).style.display = 'block';
-        document.getElementById(`ai-button-${index}`).style.display = 'none';
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            <label>Foto do Produto (Opcional)</label>
+                            <input type="file" class="form-control-file" name="items[${index}][product_image]" 
+                                   accept="image/*">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label>Serviços *</label>
+                            <div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="items[${index}][services][]" value="B" id="service-b-${index}">
+                                    <label class="form-check-label" for="service-b-${index}">B - Banhar</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="items[${index}][services][]" value="RP" id="service-rp-${index}">
+                                    <label class="form-check-label" for="service-rp-${index}">RP - Repor pedra</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="items[${index}][services][]" value="F" id="service-f-${index}">
+                                    <label class="form-check-label" for="service-f-${index}">F - Trocar fecho</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="items[${index}][services][]" value="L" id="service-l-${index}">
+                                    <label class="form-check-label" for="service-l-${index}">L - Limpar</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="items[${index}][services][]" value="S" id="service-s-${index}">
+                                    <label class="form-check-label" for="service-s-${index}">S - Soldar</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input" type="checkbox" name="items[${index}][services][]" value="RM" id="service-rm-${index}">
+                                    <label class="form-check-label" for="service-rm-${index}">RM - Remontar</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-        // Simular processamento da IA
-        setTimeout(() => {
-            document.getElementById(`ai-loading-${index}`).style.display = 'none';
+                <div class="form-group">
+                    <label>Observações do Item</label>
+                    <textarea class="form-control" name="items[${index}][observations]" rows="2"></textarea>
+                </div>
 
-            const fakeAIResult = generateFakeAIResult(file);
+                <input type="hidden" name="items[${index}][ai_identified_code]" id="ai-code-${index}">
+                <hr class="my-4">
+            </div>
+        `
+    };
 
-            // Mostrar resultado com origem
-            let sourceText = '';
-            if (fakeAIResult.source === 'filename') {
-                sourceText = '<small class="text-success">Identificado pelo nome do arquivo</small>';
-            } else {
-                sourceText = '<small class="text-warning">Identificado por análise visual</small>';
+    // Módulo de Produtos (MANTIDO IGUAL)
+    const PRODUCTS = {
+        init() {
+            document.getElementById('addProduct').addEventListener('click', () => this.add());
+            this.add();
+        },
+
+        add() {
+            const container = document.getElementById('products-container');
+            container.innerHTML += TEMPLATES.product(STATE.productIndex);
+            STATE.productIndex++;
+        },
+
+        remove(index) {
+            const element = document.getElementById(`product-${index}`);
+            if (element) element.remove();
+        },
+
+        addFromAI(product, identifiedCode) {
+            if (document.querySelectorAll('.product-item').length === 0) {
+                this.add();
             }
 
-            document.getElementById(`identified-product-${index}`).innerHTML =
-                `<strong>${fakeAIResult.code}</strong><br>${sourceText}`;
-            document.getElementById(`ai-result-${index}`).style.display = 'block';
+            const lastIndex = STATE.productIndex - 1;
 
-            // Armazenar resultado para uso posterior
-            window[`aiResult_${index}`] = fakeAIResult;
+            if (product) {
+                document.getElementById(`product-select-${lastIndex}`).value = product.id;
 
-        }, 2000 + Math.random() * 2000);
-    }
-
-    // Gerar resultado fake da IA - APENAS CÓDIGO
-    function generateFakeAIResult(file) {
-        // Extrair código do nome do arquivo
-        const fileName = file.name;
-        const extractedCode = extractCodeFromFileName(fileName);
-
-        if (extractedCode) {
-            return {
-                code: extractedCode,
-                source: 'filename'
-            };
-        }
-
-        // Fallback: código aleatório
-        const productCodes = [
-            'AN01050108RH', 'BR02031506DO', 'CO03020812NE', 'PU04011018CL',
-            'TO05042520RO', 'PE06031215RH', 'AL07051822DO', 'CH08022025MIX',
-            'AN01060109RO', 'BR02041507NE', 'CO03030813DO', 'PU04021019RH'
-        ];
-
-        const randomCode = productCodes[Math.floor(Math.random() * productCodes.length)];
-
-        return {
-            code: randomCode,
-            source: 'random'
-        };
-    }
-
-    function extractCodeFromFileName(fileName) {
-        // Remove a extensão do arquivo
-        const fileNameWithoutExt = fileName.replace(/\.[^/.]+$/, "");
-
-        // Exemplos:
-        // "AN03030033MF R$72,00" → "AN03030033MF"
-        // "BC01010001DOLS R$89,00" → "BC01010001DOLS"
-        // "BR01010052DOPT R$59,00" → "BR01010052DOPT"
-
-        // Divide por espaço e pega a primeira parte
-        const parts = fileNameWithoutExt.split(' ');
-        const potentialCode = parts[0];
-
-        // Verifica se parece um código de produto (2+ letras no início + números + letras opcionais)
-        if (/^[A-Z]{2,}\d+[A-Z]*$/.test(potentialCode)) {
-            return potentialCode;
-        }
-
-        return null;
-    }
-
-    // Usar o produto identificado pela IA
-    function useIdentifiedProduct(index) {
-        const aiResult = window[`aiResult_${index}`];
-        if (!aiResult) return;
-
-        // Mostrar apenas o código no resultado
-        document.getElementById(`identified-product-${index}`).innerHTML =
-            `<strong>${aiResult.code}</strong>`;
-
-        // Encontrar o produto correspondente na lista
-        const productSelect = document.getElementById(`product-select-${index}`);
-        const options = productSelect.options;
-
-        for (let i = 0; i < options.length; i++) {
-            if (options[i].dataset.code === aiResult.code) {
-                productSelect.selectedIndex = i;
-
-                // Tentar preencher automaticamente o banho baseado no código
-                const coatingCode = aiResult.code.slice(-2); // Últimas 2 letras
-                const coatingSelect = document.getElementById(`coating-select-${index}`);
-
-                for (let j = 0; j < coatingSelect.options.length; j++) {
-                    if (coatingSelect.options[j].value === coatingCode) {
-                        coatingSelect.selectedIndex = j;
-                        break;
+                if (identifiedCode) {
+                    const coatingCode = identifiedCode.slice(-2);
+                    const coatingSelect = document.getElementById(`coating-select-${lastIndex}`);
+                    for (let option of coatingSelect.options) {
+                        if (option.value === coatingCode) {
+                            coatingSelect.value = option.value;
+                            break;
+                        }
                     }
                 }
-
-                // Feedback visual
-                showTemporaryMessage(`Produto ${aiResult.code} selecionado automaticamente!`, 'success');
-                break;
             }
+
+            document.getElementById(`ai-code-${lastIndex}`).value = identifiedCode;
+            UTILS.showMessage(
+                product ? `Peça "${product.code}" adicionada com sucesso!` : 'Peça adicionada com sucesso!',
+                'success'
+            );
         }
+    };
 
-        // Fechar o resultado da IA
-        document.getElementById(`ai-result-${index}`).style.display = 'none';
-        document.getElementById(`ai-button-${index}`).style.display = 'block';
-    }
+    // Módulo de IA (SIMPLIFICADO)
+    // Módulo de IA (CORRIGIDO)
+    const IA_SEARCH = {
+        init() {
+            this.setupEventListeners();
+        },
 
-    // Mostrar mensagem temporária - ADICIONE ESTA FUNÇÃO
-    function showTemporaryMessage(message, type = 'info') {
-        const alertClass = type === 'success' ? 'alert-success' : 'alert-info';
-        const alertDiv = document.createElement('div');
-        alertDiv.className = `alert ${alertClass} alert-dismissible fade show`;
-        alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="close" data-dismiss="alert">
-            <span>&times;</span>
-        </button>
-    `;
-
-        // Inserir no início do conteúdo
-        const content = document.querySelector('.content');
-        if (content) {
-            content.insertBefore(alertDiv, content.firstChild);
-        }
-
-        // Auto-remover após 3 segundos
-        setTimeout(() => {
-            if (alertDiv.parentNode) {
-                alertDiv.remove();
+        setupEventListeners() {
+            // Imagem
+            const searchImage = document.getElementById('searchImage');
+            if (searchImage) {
+                searchImage.addEventListener('change', (e) => this.handleImageSelect(e));
             }
-        }, 3000);
-    }
 
-    // Função para decodificar o código do produto (educacional)
-    function decodeProductCode(code) {
-        const categories = {
-            'AN': 'Anel',
-            'BR': 'Brinco',
-            'CO': 'Colar',
-            'PU': 'Pulseira',
-            'TO': 'Tornozeleira',
-            'PE': 'Pingente',
-            'AL': 'Aliança',
-            'CH': 'Choker'
-        };
+            // Categoria
+            const searchCategory = document.getElementById('searchCategory');
+            if (searchCategory) {
+                searchCategory.addEventListener('change', () => this.updateSearchButton());
+            }
 
-        const coatings = {
-            'DO': 'Dourado',
-            'RH': 'Ródio Branco',
-            'RO': 'Rose',
-            'NE': 'Ródio Negro',
-            'MIX': 'Mix',
-            'CL': 'Colorido'
-        };
+            // Botões
+            const searchButton = document.getElementById('searchButton');
+            const addToOrderButton = document.getElementById('addToOrderButton');
+            const productSelection = document.getElementById('productSelection');
 
-        const category = code.substring(0, 2);
-        const coating = code.slice(-2);
+            if (searchButton) {
+                searchButton.addEventListener('click', () => this.search());
+            }
 
-        return {
-            category: categories[category] || 'Desconhecido',
-            coating: coatings[coating] || 'Desconhecido'
-        };
-    }
+            if (addToOrderButton) {
+                addToOrderButton.addEventListener('click', () => this.addToOrder());
+            }
 
-    // Adicionar produto
-    document.getElementById('addProduct').addEventListener('click', function() {
-        const container = document.getElementById('products-container');
-        container.innerHTML += productTemplate(productIndex);
-        productIndex++;
-    });
+            if (productSelection) {
+                productSelection.addEventListener('change', () => this.updateAddButton());
+            }
+        },
 
-    // Remover produto
-    function removeProduct(index) {
-        const element = document.getElementById(`product-${index}`);
-        if (element) {
-            element.remove();
+        handleImageSelect(e) {
+            const file = e.target.files[0];
+            const preview = document.getElementById('searchImagePreview');
+            const label = document.querySelector('.custom-file-label');
+
+            if (file) {
+                if (label) label.textContent = file.name;
+                if (preview) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        preview.src = e.target.result;
+                        preview.style.display = 'block';
+                    }
+                    reader.readAsDataURL(file);
+                }
+            } else {
+                if (preview) preview.style.display = 'none';
+                if (label) label.textContent = 'Selecione a imagem...';
+            }
+
+            this.updateSearchButton();
+        },
+
+        updateSearchButton() {
+            const searchButton = document.getElementById('searchButton');
+            if (!searchButton) return;
+
+            const hasImage = document.getElementById('searchImage')?.files?.length > 0;
+            const hasCategory = document.getElementById('searchCategory')?.value;
+
+            console.log('updateSearchButton:', {
+                hasImage,
+                hasCategory
+            }); // Debug
+
+            searchButton.disabled = !(hasImage && hasCategory);
+        },
+
+        updateAddButton() {
+            const addToOrderButton = document.getElementById('addToOrderButton');
+            if (!addToOrderButton) return;
+
+            const hasSelection = document.getElementById('productSelection')?.value !== '';
+            addToOrderButton.disabled = !hasSelection;
+        },
+
+        async search() {
+            const fileInput = document.getElementById('searchImage');
+            const category = document.getElementById('searchCategory');
+
+            if (!fileInput || !category) {
+                alert('Elementos do formulário não encontrados.');
+                return;
+            }
+
+            const file = fileInput.files[0];
+
+            if (!file || !category.value) {
+                alert('Por favor, preencha todos os campos obrigatórios.');
+                return;
+            }
+
+            this.showLoading();
+
+            try {
+                const formData = new FormData();
+                formData.append('image', file);
+                formData.append('product_type', category.value);
+
+                const response = await fetch(CONFIG.apiRoutes.identify, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    },
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Erro HTTP: ${response.status}`);
+                }
+
+                const data = await response.json();
+                this.hideLoading();
+
+                if (data.success) {
+                    this.displayResults(data);
+                } else {
+                    this.showError(data.error || 'Erro desconhecido na busca.');
+                }
+
+            } catch (error) {
+                this.hideLoading();
+                this.showError('Erro de comunicação: ' + error.message);
+                console.error('Erro na busca por IA:', error);
+            }
+        },
+
+        showLoading() {
+            const searchLoading = document.getElementById('searchLoading');
+            const searchResults = document.getElementById('searchResults');
+            const searchError = document.getElementById('searchError');
+            const searchButton = document.getElementById('searchButton');
+
+            if (searchLoading) searchLoading.style.display = 'block';
+            if (searchResults) searchResults.style.display = 'none';
+            if (searchError) searchError.style.display = 'none';
+            if (searchButton) searchButton.disabled = true;
+        },
+
+        hideLoading() {
+            const searchLoading = document.getElementById('searchLoading');
+            const searchButton = document.getElementById('searchButton');
+
+            if (searchLoading) searchLoading.style.display = 'none';
+            if (searchButton) searchButton.disabled = false;
+        },
+
+        displayResults(data) {
+            const resultsList = document.getElementById('resultsList');
+            const productSelection = document.getElementById('productSelection');
+            const searchResults = document.getElementById('searchResults');
+
+            if (!resultsList || !productSelection || !searchResults) return;
+
+            resultsList.innerHTML = '';
+            productSelection.innerHTML = '<option value="">Selecione uma peça...</option>';
+
+            if (data.ai_results && data.ai_results.mais_semelhantes && data.ai_results.mais_semelhantes.length > 0) {
+                const matches = data.ai_results.mais_semelhantes;
+
+                const resultsCount = document.createElement('div');
+                resultsCount.className = 'alert alert-info mb-3';
+                resultsCount.innerHTML = `<i class="fas fa-info-circle"></i> Encontrados ${matches.length} resultados:`;
+                resultsList.appendChild(resultsCount);
+
+                matches.forEach((match, index) => {
+                    const similarityPercent = (match.similaridade * 100).toFixed(1);
+                    const extractedCode = UTILS.extractCodeFromFileName(match.arquivo);
+
+                    const resultItem = document.createElement('div');
+                    resultItem.className = 'result-item';
+
+                    if (similarityPercent > 80) {
+                        resultItem.style.borderLeft = '4px solid #28a745';
+                    } else if (similarityPercent > 60) {
+                        resultItem.style.borderLeft = '4px solid #ffc107';
+                    } else {
+                        resultItem.style.borderLeft = '4px solid #dc3545';
+                    }
+
+                    resultItem.innerHTML = `
+                    <div class="d-flex align-items-start">
+                        <div class="mr-3" style="flex-shrink: 0;">
+                            <img src="${match.url}" 
+                                 alt="${match.arquivo}" 
+                                 class="product-thumbnail"
+                                 onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjYwIiBoZWlnaHQ9IjYwIiBmaWxsPSIjRjBGMEYwIi8+CjxwYXRoIGQ9Ik0zMCAzN0MzMy44NjYgMzcgMzcgMzMuODY2IDM3IDMwQzM3IDI2LjEzNCAzMy44NjYgMjMgMzAgMjNDMjYuMTM0IDIzIDIzIDI2LjEzNCAyMyAzMEMyMyAzMy44NjYgMjYuMTM0IDM3IDMwIDM3WiIgZmlsbD0iI0RERERERCIvPgo8cGF0aCBkPSJNMTggMTdINDJWNDNIMThWMTdaIiBzdHJva2U9IiNEREREREQiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4K'">
+                        </div>
+                        
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start mb-1">
+                                <div>
+                                    <strong class="text-primary">${match.arquivo}</strong>
+                                    ${extractedCode ? `
+                                        <div>
+                                            <small class="text-muted">
+                                                <strong>Código:</strong> 
+                                                <span class="badge badge-light">${extractedCode}</span>
+                                            </small>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                <span class="badge badge-${similarityPercent > 80 ? 'success' : similarityPercent > 60 ? 'warning' : 'danger'} similarity-badge">
+                                    ${similarityPercent}%
+                                </span>
+                            </div>
+                            
+                            <div class="mt-1">
+                                <small class="text-muted">
+                                    <a href="${match.url}" target="_blank" class="text-info" title="Abrir imagem em nova aba">
+                                        <i class="fas fa-external-link-alt"></i> Ver imagem original
+                                    </a>
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                    resultItem.addEventListener('click', () => {
+                        document.querySelectorAll('.result-item').forEach(item => {
+                            item.classList.remove('selected');
+                            item.style.backgroundColor = '';
+                        });
+                        resultItem.classList.add('selected');
+                        resultItem.style.backgroundColor = '#e3f2fd';
+                        productSelection.value = index;
+                        this.updateAddButton();
+                    });
+
+                    resultsList.appendChild(resultItem);
+
+                    const option = document.createElement('option');
+                    option.value = index;
+                    option.textContent = `#${index + 1} - ${match.arquivo} (${similarityPercent}% similar)`;
+                    if (extractedCode) {
+                        option.textContent += ` - ${extractedCode}`;
+                    }
+                    productSelection.appendChild(option);
+                });
+
+                STATE.currentSearchResults = data;
+
+                const stats = this.calculateStats(matches);
+                const statsDiv = document.createElement('div');
+                statsDiv.className = 'alert alert-secondary mt-3';
+                statsDiv.innerHTML = `
+                <small>
+                    <strong>Estatísticas:</strong> 
+                    ${stats.highSimilarity} alta similaridade (>80%) | 
+                    ${stats.mediumSimilarity} média similaridade (60-80%) | 
+                    ${stats.lowSimilarity} baixa similaridade (<60%)
+                </small>
+            `;
+                resultsList.appendChild(statsDiv);
+
+            } else {
+                resultsList.innerHTML = '<div class="alert alert-warning">Nenhuma correspondência encontrada pela IA.</div>';
+            }
+
+            searchResults.style.display = 'block';
+            this.updateAddButton();
+        },
+
+        calculateStats(matches) {
+            const stats = {
+                highSimilarity: 0,
+                mediumSimilarity: 0,
+                lowSimilarity: 0
+            };
+
+            matches.forEach(match => {
+                const similarityPercent = match.similaridade * 100;
+                if (similarityPercent > 80) {
+                    stats.highSimilarity++;
+                } else if (similarityPercent > 60) {
+                    stats.mediumSimilarity++;
+                } else {
+                    stats.lowSimilarity++;
+                }
+            });
+
+            return stats;
+        },
+
+        showError(message) {
+            const searchError = document.getElementById('searchError');
+            const errorMessage = document.getElementById('errorMessage');
+
+            if (searchError && errorMessage) {
+                errorMessage.textContent = message;
+                searchError.style.display = 'block';
+            } else {
+                alert('Erro: ' + message);
+            }
+        },
+
+        addToOrder() {
+            const selectedIndex = document.getElementById('productSelection')?.value;
+            if (!selectedIndex || selectedIndex === '') return;
+
+            const searchData = STATE.currentSearchResults;
+            if (!searchData || !searchData.ai_results || !searchData.ai_results.mais_semelhantes) {
+                alert('Nenhum resultado disponível para adicionar.');
+                return;
+            }
+
+            const selectedMatch = searchData.ai_results.mais_semelhantes[selectedIndex];
+            if (!selectedMatch) {
+                alert('Resultado selecionado não encontrado.');
+                return;
+            }
+
+            const extractedCode = UTILS.extractCodeFromFileName(selectedMatch.arquivo);
+
+            let matchedProduct = null;
+            if (extractedCode) {
+                matchedProduct = CONFIG.products.find(p => p.code.includes(extractedCode));
+            }
+
+            if (!matchedProduct && searchData.matched_product) {
+                matchedProduct = CONFIG.products.find(p => p.id == searchData.matched_product.id);
+            }
+
+            PRODUCTS.addFromAI(matchedProduct, extractedCode);
+            this.reset();
+            $('#locateProductModal').modal('hide');
+        },
+
+        reset() {
+            const searchImage = document.getElementById('searchImage');
+            const searchImagePreview = document.getElementById('searchImagePreview');
+            const customFileLabel = document.querySelector('.custom-file-label');
+            const searchCategory = document.getElementById('searchCategory');
+            const searchResults = document.getElementById('searchResults');
+            const searchError = document.getElementById('searchError');
+            const searchButton = document.getElementById('searchButton');
+
+            if (searchImage) searchImage.value = '';
+            if (searchImagePreview) searchImagePreview.style.display = 'none';
+            if (customFileLabel) customFileLabel.textContent = 'Selecione a imagem...';
+            if (searchCategory) searchCategory.value = '';
+
+            if (searchResults) searchResults.style.display = 'none';
+            if (searchError) searchError.style.display = 'none';
+            if (searchButton) searchButton.disabled = true;
+
+            STATE.currentSearchResults = null;
         }
-    }
+    };
+    // Utilitários (MANTIDO IGUAL)
+    const UTILS = {
+        init() {
+            this.setupMasks();
+        },
 
-    // Atualizar informações do produto
-    function updateProductInfo(index, productId) {
-        // Aqui você pode adicionar lógica para atualizar informações baseadas no produto selecionado
-        console.log(`Produto ${productId} selecionado no item ${index}`);
-    }
+        setupMasks() {
+            const clientDocument = document.getElementById('client_document');
+            if (clientDocument) {
+                clientDocument.addEventListener('input', function(e) {
+                    let value = e.target.value.replace(/\D/g, '');
+                    if (value.length <= 11) {
+                        value = value.replace(/(\d{3})(\d)/, '$1.$2')
+                            .replace(/(\d{3})(\d)/, '$1.$2')
+                            .replace(/(\d{3})(\d{1,2})/, '$1-$2');
+                    } else {
+                        value = value.replace(/(\d{2})(\d)/, '$1.$2')
+                            .replace(/(\d{3})(\d)/, '$1.$2')
+                            .replace(/(\d{3})(\d)/, '$1/$2')
+                            .replace(/(\d{4})(\d{1,2})/, '$1-$2');
+                    }
+                    e.target.value = value;
+                });
+            }
 
-    // Adicionar primeiro produto ao carregar a página
+            const clientPhone = document.getElementById('client_phone');
+            if (clientPhone) {
+                clientPhone.addEventListener('input', function(e) {
+                    let value = e.target.value.replace(/\D/g, '');
+                    value = value.replace(/(\d{2})(\d)/, '($1) $2')
+                        .replace(/(\d{5})(\d)/, '$1-$2')
+                        .replace(/(-\d{4})\d+?$/, '$1');
+                    e.target.value = value;
+                });
+            }
+        },
+
+        extractCodeFromFileName(fileName) {
+            if (!fileName) return null;
+
+            const fileNameWithoutExt = fileName.replace(/\.[^/.]+$/, "");
+            const normalized = fileNameWithoutExt
+                .normalize("NFD")
+                .replace(/[^A-Z0-9]/g, '')
+                .toUpperCase();
+
+            const patterns = [
+                /[A-Z]{2}\d{8}[A-Z]{2}/,
+                /[A-Z]{2}\d{6}[A-Z]{2}/,
+                /[A-Z]{2}\d+[A-Z]*/
+            ];
+
+            for (let pattern of patterns) {
+                const match = normalized.match(pattern);
+                if (match) return match[0];
+            }
+
+            return null;
+        },
+
+        showMessage(message, type = 'info') {
+            const alertClass = type === 'success' ? 'alert-success' : 'alert-info';
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert ${alertClass} alert-dismissible fade show`;
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="close" data-dismiss="alert">
+                    <span>&times;</span>
+                </button>
+            `;
+
+            const content = document.querySelector('.content');
+            if (content) {
+                content.insertBefore(alertDiv, content.firstChild);
+            }
+
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.remove();
+                }
+            }, 3000);
+        }
+    };
+
+    // Inicialização
     document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('addProduct').click();
-    });
-
-    // Máscaras para CPF/CNPJ e telefone
-    document.getElementById('client_document').addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\D/g, '');
-        if (value.length <= 11) {
-            value = value.replace(/(\d{3})(\d)/, '$1.$2')
-                .replace(/(\d{3})(\d)/, '$1.$2')
-                .replace(/(\d{3})(\d{1,2})/, '$1-$2');
-        } else {
-            value = value.replace(/(\d{2})(\d)/, '$1.$2')
-                .replace(/(\d{3})(\d)/, '$1.$2')
-                .replace(/(\d{3})(\d)/, '$1/$2')
-                .replace(/(\d{4})(\d{1,2})/, '$1-$2');
-        }
-        e.target.value = value;
-    });
-
-    document.getElementById('client_phone').addEventListener('input', function(e) {
-        let value = e.target.value.replace(/\D/g, '');
-        value = value.replace(/(\d{2})(\d)/, '($1) $2')
-            .replace(/(\d{5})(\d)/, '$1-$2')
-            .replace(/(-\d{4})\d+?$/, '$1');
-        e.target.value = value;
+        PRODUCTS.init();
+        IA_SEARCH.init();
+        UTILS.init();
     });
 </script>
 @endpush

@@ -202,7 +202,7 @@ Editar Ordem de Serviço: {{ $serviceOrder->order_number }}
                                     <select class="form-control" name="items[{{ $index }}][status]">
                                         <option value="">Selecione...</option>
                                         <option value="RP" {{ $item->status == 'RP' ? 'selected' : '' }}>RP - Reparo realizado</option>
-                                        <option value="SC" {{ $item->status == 'SC' ? 'selected' : '' }}>SC - Sem comentário</option>
+                                        <option value="SC" {{ $item->status == 'SC' ? 'selected' : '' }}>SC - Sem conserto</option>
                                         <option value="GTC" {{ $item->status == 'GTC' ? 'selected' : '' }}>GTC - Garantia troca física</option>
                                         <option value="GCG" {{ $item->status == 'GCG' ? 'selected' : '' }}>GCG - Garantia crédito gerado</option>
                                         <option value="N" {{ $item->status == 'N' ? 'selected' : '' }}>N - Não é LBF</option>
