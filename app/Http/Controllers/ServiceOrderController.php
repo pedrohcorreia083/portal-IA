@@ -182,59 +182,82 @@ class ServiceOrderController extends Controller
         try {
             $request->validate([
                 'image' => 'required|image|mimes:jpeg,png,jpg|max:2048',
-                'product_type' => 'required|string', // categoria principal
+                'product_type' => 'required|string',
             ]);
 
             $tempPath = $request->file('image')->getPathname();
+            $url = rtrim($this->flaskApiUrl, '/') . '/analisar';
 
-            $response = Http::timeout(5000)->attach(
-                'file',
-                file_get_contents($tempPath),
-                'image.jpg'
-            )->post($this->flaskApiUrl . '/analisar', [
-                'produto' => $request->product_type, // apenas categoria principal
+            // 🔍 Log antes de enviar
+            Log::info('📤 Enviando imagem para IA', [
+                'url' => $url,
+                'product_type' => $request->product_type,
+                'file_path' => $tempPath,
             ]);
 
-            if ($response->successful()) {
-                $data = $response->json();
-                $bestMatch = $data['mais_semelhantes'][0] ?? null;
-                $identifiedCode = $bestMatch ? $this->extractCodeFromFileName($bestMatch['arquivo']) : null;
-
-                $matchedProduct = null;
-                if ($identifiedCode) {
-                    $matchedProduct = Product::where('code', 'like', "%{$identifiedCode}%")
-                        ->where('is_active', true)
-                        ->first();
-                }
-
-                return response()->json([
-                    'success' => true,
-                    'ai_results' => $data,
-                    'identified_code' => $identifiedCode,
-                    'matched_product' => $matchedProduct ? [
-                        'id' => $matchedProduct->id,
-                        'code' => $matchedProduct->code,
-                        'name' => $matchedProduct->name,
-                    ] : null,
-                    'similarity' => $bestMatch ? round($bestMatch['similaridade'] * 100, 1) : 0
+            $response = Http::timeout(60)
+                ->attach('file', file_get_contents($tempPath), 'image.jpg')
+                ->post($url, [
+                    'produto' => $request->product_type,
                 ]);
-            } else {
+
+            // 🔍 Log da resposta bruta
+            Log::info('📥 Resposta da IA', [
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            // Verifica se a API Flask respondeu OK
+            if ($response->failed()) {
+                Log::error('❌ Erro ao chamar IA', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+
                 return response()->json([
                     'success' => false,
-                    'error' => 'Erro na análise da IA: ' . $response->body()
+                    'error' => 'Erro na análise da IA: ' . $response->body(),
                 ], 500);
             }
-        } catch (\Exception $e) {
-            Log::error('Erro na identificação por IA', [
-                'message' => $e->getMessage()
+
+            // Processa o JSON da resposta
+            $data = $response->json();
+            $bestMatch = $data['mais_semelhantes'][0] ?? null;
+            $identifiedCode = $bestMatch ? $this->extractCodeFromFileName($bestMatch['arquivo']) : null;
+
+            $matchedProduct = null;
+            if ($identifiedCode) {
+                $matchedProduct = Product::where('code', 'like', "%{$identifiedCode}%")
+                    ->where('is_active', true)
+                    ->first();
+            }
+
+            return response()->json([
+                'success' => true,
+                'ai_results' => $data,
+                'identified_code' => $identifiedCode,
+                'matched_product' => $matchedProduct ? [
+                    'id' => $matchedProduct->id,
+                    'code' => $matchedProduct->code,
+                    'name' => $matchedProduct->name,
+                ] : null,
+                'similarity' => $bestMatch ? round($bestMatch['similaridade'] * 100, 1) : 0,
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('🔥 Exceção na identificação por IA', [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'success' => false,
-                'error' => 'Erro interno: ' . $e->getMessage()
+                'error' => 'Erro interno: ' . $e->getMessage(),
             ], 500);
         }
     }
+
 
 
     private function listarCategoriasPrincipais()
