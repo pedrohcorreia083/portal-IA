@@ -183,7 +183,7 @@ Nova Ordem de Serviço
                                 </small>
                             </div>
 
-                            <button type="button" class="btn btn-success btn-block" id="addToOrderButton" disabled>
+                            <button type="button" class="btn btn-success btn-block" id="addToOrderButton" data-dismiss="modal" disabled>
                                 <i class="fas fa-plus"></i> Adicionar à Ordem de Serviço
                             </button>
                         </div>
