@@ -67,8 +67,8 @@ class ServiceOrderController extends Controller
                 'origin' => 'required|in:SHOWROOM SP,SHOWROOM LIMEIRA,SHOWROOM ON-LINE,E-COMMERCE,EVENTOS',
                 'order_date' => 'required|date',
                 'observations' => 'nullable|string',
-                'items' => 'required|array|min:1',
-                'items.*.product_name' => 'required|string|max:255',
+                'items' => 'nullable|array|min:1',
+                'items.*.product_name' => 'nullable|string|max:255',
                 'items.*.coating' => 'nullable|in:DO,RH,RO,NE,MIX,CL',
                 'items.*.observations' => 'nullable|string',
                 'items.*.product_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
@@ -302,46 +302,140 @@ class ServiceOrderController extends Controller
 
     public function edit(ServiceOrder $serviceOrder)
     {
-
-
         if (!auth()->user()->isAdmin()) {
             return redirect()->route('service-orders.show', $serviceOrder)
                 ->with('warning', 'Apenas administradores podem editar ordens de serviço.');
         }
 
-        // $products = Product::where('is_active', true)->get();
-        //         dd($products);
+        $serviceOrder->load('items.product');
 
-        $serviceOrder->load('items');
+        $products = Product::where('is_active', true)->get();
 
-        return view('service-orders.edit', compact('serviceOrder'));
+        // Defina suas categorias principais aqui
+        $categoriasPrincipais = [
+            'Anel',
+            'Brinco',
+            'Colar',
+            'Pulseira',
+            'Tornozeleira',
+            'Pingente',
+            'Broche',
+            'Tiara',
+            'Aliança',
+            'Outros'
+        ];
+
+        return view('service-orders.edit', compact('serviceOrder', 'products', 'categoriasPrincipais'));
     }
 
     public function update(Request $request, ServiceOrder $serviceOrder)
     {
-        if (!auth()->user()->isAdmin()) {
-            return redirect()->route('service-orders.show', $serviceOrder)
-                ->with('error', 'Acesso negado. Apenas administradores podem editar ordens de serviço.');
-        }
-
-        $validated = $request->validate([
-            'client_name' => 'required|string|max:255',
-            'client_document' => 'nullable|string|max:20',
-            'client_phone' => 'nullable|string|max:20',
-            'consultant_name' => 'required|string|max:255',
-            'client_code' => 'required|string|max:50',
-            'origin' => 'required|in:SHOWROOM SP,SHOWROOM LIMEIRA,SHOWROOM ON-LINE,E-COMMERCE,EVENTOS',
-            'order_date' => 'required|date',
-            'is_guarantee' => 'boolean',
-            'observations' => 'nullable|string',
-            'status' => 'required|in:pending,in_progress,completed,cancelled',
+        Log::info('🔄 Iniciando update da OS', [
+            'service_order_id' => $serviceOrder->id,
+            'user_id' => auth()->id(),
+            'dados' => $request->all()
         ]);
 
-        $serviceOrder->update($validated);
+        try {
+            // Atualizar dados principais
+            $serviceOrder->update([
+                'client_name' => $request->client_name,
+                'client_document' => $request->client_document,
+                'client_phone' => $request->client_phone,
+                'consultant_name' => $request->consultant_name,
+                'client_code' => $request->client_code,
+                'order_date' => $request->order_date,
+                'origin' => $request->origin,
+                'observations' => $request->observations,
+                'is_guarantee' => $request->has('is_guarantee'),
+            ]);
 
-        return redirect()->route('service-orders.show', $serviceOrder)
-            ->with('success', 'Ordem de Serviço atualizada com sucesso!');
+            // Processar itens
+            $existingItemIds = $serviceOrder->items->pluck('id')->toArray();
+            $updatedItemIds = [];
+
+            foreach ($request->items as $index => $itemData) {
+                Log::info("🔹 Processando item #{$index}", $itemData);
+
+                $itemData['services'] = json_encode($itemData['services'] ?? []);
+
+                // Define o nome do produto de forma segura
+                $productName = $itemData['product_name'] ?? $itemData['identified_product_name'] ?? null;
+
+                // Verifica se é um item existente
+                if (!empty($itemData['id'])) {
+                    $item = $serviceOrder->items()->find($itemData['id']);
+
+                    if ($item) {
+                        Log::info("✏️ Atualizando item existente", ['id' => $item->id]);
+                        $item->update([
+                            'identified_product_name' => $productName,
+                            'product_id' => null,
+                            'coating' => $itemData['coating'] ?? null,
+                            'services' => $itemData['services'],
+                            'observations' => $itemData['observations'] ?? null,
+                            'ai_identified_code' => $itemData['ai_identified_code'] ?? null,
+                        ]);
+                        $updatedItemIds[] = $item->id;
+                    } else {
+                        Log::warning("⚠️ ID informado ({$itemData['id']}) não encontrado, criando novo item.");
+                        $newItem = $serviceOrder->items()->create([
+                            'identified_product_name' => $productName,
+                            'product_id' => null,
+                            'coating' => $itemData['coating'] ?? null,
+                            'services' => $itemData['services'],
+                            'observations' => $itemData['observations'] ?? null,
+                            'ai_identified_code' => $itemData['ai_identified_code'] ?? null,
+                        ]);
+                        $updatedItemIds[] = $newItem->id;
+                    }
+                } else {
+                    // Criar novo item
+                    Log::info("🆕 Criando novo item", ['product_name' => $productName]);
+                    $newItem = $serviceOrder->items()->create([
+                        'identified_product_name' => $productName,
+                        'product_id' => null,
+                        'coating' => $itemData['coating'] ?? null,
+                        'services' => $itemData['services'],
+                        'observations' => $itemData['observations'] ?? null,
+                        'ai_identified_code' => $itemData['ai_identified_code'] ?? null,
+                    ]);
+                    $updatedItemIds[] = $newItem->id;
+                }
+
+                // Upload da imagem (opcional)
+                if (isset($itemData['product_image']) && $itemData['product_image'] instanceof \Illuminate\Http\UploadedFile) {
+                    $path = $itemData['product_image']->store('service-order-items', 'public');
+                    $item->update(['product_image' => $path]);
+                }
+            }
+
+            Log::info('✅ Itens processados', [
+                'existing' => $existingItemIds,
+                'updated' => $updatedItemIds
+            ]);
+
+            // Remover itens que não estão mais na lista
+            $itemsToDelete = array_diff($existingItemIds, $updatedItemIds);
+            if (!empty($itemsToDelete)) {
+                $serviceOrder->items()->whereIn('id', $itemsToDelete)->delete();
+            }
+
+            return redirect()->route('service-orders.show', $serviceOrder)
+                ->with('success', 'Ordem de Serviço atualizada com sucesso!');
+        } catch (\Exception $e) {
+            Log::error('❌ Erro ao atualizar ordem de serviço', [
+                'mensagem' => $e->getMessage(),
+                'linha' => $e->getLine(),
+                'arquivo' => $e->getFile()
+            ]);
+
+            return redirect()->back()
+                ->withInput()
+                ->with('error', 'Erro ao atualizar ordem de serviço: ' . $e->getMessage());
+        }
     }
+
 
     public function destroy(ServiceOrder $serviceOrder)
     {

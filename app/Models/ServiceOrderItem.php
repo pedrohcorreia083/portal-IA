@@ -79,10 +79,23 @@ class ServiceOrderItem extends Model
     // Métodos de acesso
     public function getServicesNamesAttribute(): array
     {
+        $services = $this->services;
+
+        // Se for string (JSON), decodifica
+        if (is_string($services)) {
+            $services = json_decode($services, true);
+        }
+
+        // Garante que é um array
+        if (!is_array($services)) {
+            $services = [];
+        }
+
         return array_map(function ($service) {
             return self::SERVICES[$service] ?? $service;
-        }, $this->services ?? []);
+        }, $services);
     }
+
 
     // NOVO: Nome do status técnico
     public function getTechnicalStatusNameAttribute(): ?string
