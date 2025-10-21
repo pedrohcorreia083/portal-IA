@@ -33,7 +33,13 @@ Ordem de Serviço: {{ $serviceOrder->order_number }}
                     </div>
                     <div class="col-md-6">
                         <strong>Consultora:</strong> {{ $serviceOrder->consultant_name }}<br>
-                        <strong>Cód. Cliente:</strong> {{ $serviceOrder->client_code }}<br>
+                        <strong>Cód. Cliente:</strong>
+                        @if ($serviceOrder->client_code == 0)
+                        <span class="text-danger">Favor preencher o Cód. Cliente</span>
+                        @else
+                        {{ $serviceOrder->client_code }}
+                        @endif
+                        <br>
                         <strong>Origem:</strong> {{ $serviceOrder->origin }}
                     </div>
                 </div>
@@ -193,15 +199,6 @@ Ordem de Serviço: {{ $serviceOrder->order_number }}
                     <i class="fas fa-clipboard-check"></i> Realizar Análise Técnica
                 </a>
             </div>
-        </div>
-        @endif
-
-        {{-- No card header da tabela de produtos --}}
-        @if($serviceOrder->canBeAnalyzed() && (auth()->user()->isAdmin() || auth()->user()->isTechnical()))
-        <div class="card-tools">
-            <a href="{{ route('service-orders.analysis', $serviceOrder) }}" class="btn btn-primary btn-sm">
-                <i class="fas fa-clipboard-check"></i> Realizar Análise
-            </a>
         </div>
         @endif
     </div>
