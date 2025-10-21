@@ -52,7 +52,6 @@ class ServiceOrderController extends Controller
 
     public function store(Request $request)
     {
-
         if (empty($request->client_code)) {
             $request->merge(['client_code' => '0']);
         }
@@ -67,42 +66,37 @@ class ServiceOrderController extends Controller
                 'origin' => 'required|in:SHOWROOM SP,SHOWROOM LIMEIRA,SHOWROOM ON-LINE,E-COMMERCE,EVENTOS',
                 'order_date' => 'required|date',
                 'observations' => 'nullable|string',
-                'items' => 'nullable|array|min:1',
-                'items.*.product_name' => 'nullable|string|max:255',
-                'items.*.coating' => 'nullable|in:DO,RH,RO,NE,MIX,CL',
-                'items.*.observations' => 'nullable|string',
-                'items.*.product_image' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
-                'items.*.ai_identified_code' => 'nullable|string',
-                // REMOVIDOS: is_guarantee, repair_price, status
             ]);
 
-            // Status inicial automático
+            // Cria a OS com status inicial
             $serviceOrderData = collect($validated)->except('items')->toArray();
-            $serviceOrderData['status'] = self::STATUS_CREATED; // ← ADICIONAR ESTA LINHA
+            $serviceOrderData['status'] = self::STATUS_CREATED;
 
             $serviceOrder = ServiceOrder::create($serviceOrderData);
 
-            foreach ($request->items as $itemData) {
-                $item = new ServiceOrderItem([
-                    'identified_product_name' => $itemData['product_name'],
-                    'product_id'   => $item['product_id'] ?? null,
-                    'services' => $itemData['services'],
-                    'coating' => $itemData['coating'] ?? null,
-                    'observations' => $itemData['observations'] ?? null,
-                    'ai_identified_code' => $itemData['ai_identified_code'] ?? null,
-                    // Campos técnicos ficam NULL inicialmente
-                    'is_guarantee' => null,
-                    'repair_price' => null,
-                    'technical_status' => null,
-                ]);
+            // Verifica se existem itens antes de iterar
+            if (!empty($request->items) && is_array($request->items)) {
+                foreach ($request->items as $itemData) {
+                    $item = new ServiceOrderItem([
+                        'identified_product_name' => $itemData['product_name'] ?? null,
+                        'product_id' => $itemData['product_id'] ?? null,
+                        'services' => $itemData['services'] ?? null,
+                        'coating' => $itemData['coating'] ?? null,
+                        'observations' => $itemData['observations'] ?? null,
+                        'ai_identified_code' => $itemData['ai_identified_code'] ?? null,
+                        'is_guarantee' => null,
+                        'repair_price' => null,
+                        'technical_status' => null,
+                    ]);
 
-                if (isset($itemData['product_image']) && $itemData['product_image']->isValid()) {
-                    $file = $itemData['product_image'];
-                    $imagePath = $file->store('service-order-items', 'public');
-                    $item->product_image = $imagePath;
+                    if (isset($itemData['product_image']) && $itemData['product_image']->isValid()) {
+                        $file = $itemData['product_image'];
+                        $imagePath = $file->store('service-order-items', 'public');
+                        $item->product_image = $imagePath;
+                    }
+
+                    $serviceOrder->items()->save($item);
                 }
-
-                $serviceOrder->items()->save($item);
             }
 
             return redirect()
