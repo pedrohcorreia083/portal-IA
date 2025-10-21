@@ -312,18 +312,7 @@ class ServiceOrderController extends Controller
         $products = Product::where('is_active', true)->get();
 
         // Defina suas categorias principais aqui
-        $categoriasPrincipais = [
-            'Anel',
-            'Brinco',
-            'Colar',
-            'Pulseira',
-            'Tornozeleira',
-            'Pingente',
-            'Broche',
-            'Tiara',
-            'Aliança',
-            'Outros'
-        ];
+        $categoriasPrincipais = $this->listarCategoriasPrincipais();
 
         return view('service-orders.edit', compact('serviceOrder', 'products', 'categoriasPrincipais'));
     }
