@@ -422,24 +422,28 @@ Nova Ordem de Serviço
     // Módulo de Produtos
     const PRODUCTS = {
         init() {
+            // inicializa apenas se não existir ainda
+            if (typeof STATE.productIndex === 'undefined') {
+                STATE.productIndex = document.querySelectorAll('.product-item').length || 0;
+            }
+
             document.getElementById('addProduct').addEventListener('click', () => this.add());
-            this.add();
         },
 
         add() {
             const container = document.getElementById('products-container');
-            container.innerHTML += TEMPLATES.product(STATE.productIndex);
+            const index = STATE.productIndex;
 
-            // adiciona listener para sincronizar product_id com product_name quando digitar manualmente
-            // usamos setTimeout para garantir que o elemento já exista no DOM
+            // adiciona o novo produto
+            container.insertAdjacentHTML('beforeend', TEMPLATES.product(index));
+
+            // listener para sincronizar product_name → product_id
             setTimeout(() => {
-                const nameInput = document.getElementById(`product-name-${STATE.productIndex}`);
-                const idInput = document.getElementById(`product-id-${STATE.productIndex}`);
+                const nameInput = document.getElementById(`product-name-${index}`);
+                const idInput = document.getElementById(`product-id-${index}`);
                 if (nameInput && idInput) {
                     nameInput.addEventListener('input', () => {
-                        // se não houver um product_id selecionado, mantenha o valor do name no hidden antes do submit
                         if (!idInput.value) {
-                            // não atribuímos um id numérico, apenas guardamos a string para evitar NULL no banco
                             idInput.value = nameInput.value.trim();
                         }
                     });
@@ -447,7 +451,7 @@ Nova Ordem de Serviço
             }, 50);
 
             STATE.productIndex++;
-        },
+        }, // 👈 vírgula ESSENCIAL AQUI!
 
         remove(index) {
             const element = document.getElementById(`product-${index}`);
@@ -460,35 +464,43 @@ Nova Ordem de Serviço
                 this.add();
             }
 
-            const lastIndex = STATE.productIndex - 1;
+            // procura o primeiro campo de produto vazio
+            let targetIndex = null;
+            document.querySelectorAll('.product-item').forEach((item, i) => {
+                const nameInput = item.querySelector(`[id^="product-name-"]`);
+                if (nameInput && !nameInput.value.trim() && targetIndex === null) {
+                    targetIndex = i;
+                }
+            });
 
-            // Preenche o campo do produto
-            const productNameInput = document.getElementById(`product-name-${lastIndex}`);
-            const productIdInput = document.getElementById(`product-id-${lastIndex}`);
-            const aiCodeInput = document.getElementById(`ai-code-${lastIndex}`);
+            // se todos estão preenchidos, adiciona um novo produto
+            if (targetIndex === null) {
+                this.add();
+                targetIndex = STATE.productIndex - 1;
+            }
+
+            const productNameInput = document.getElementById(`product-name-${targetIndex}`);
+            const productIdInput = document.getElementById(`product-id-${targetIndex}`);
+            const aiCodeInput = document.getElementById(`ai-code-${targetIndex}`);
 
             if (productNameInput && productIdInput && aiCodeInput) {
                 if (product) {
-                    // Se encontrou produto no banco, preenche com código + nome
                     productNameInput.value = `${product.code} - ${product.name}`;
                     productIdInput.value = product.id;
                 } else if (identifiedCode) {
-                    // Se só tem código identificado, preenche só o código
                     productNameInput.value = identifiedCode;
                     productIdInput.value = identifiedCode;
                 }
 
-                // Preenche o código da IA
                 aiCodeInput.value = identifiedCode || '';
 
-                // Preenche automaticamente o banho se tiver código
                 if (identifiedCode) {
-                    this.autoFillCoating(lastIndex, identifiedCode);
+                    this.autoFillCoating(targetIndex, identifiedCode);
                 }
 
                 UTILS.showMessage(
-                    product ? `Peça "${product.code}" adicionada com sucesso!` :
-                    identifiedCode ? `Peça "${identifiedCode}" adicionada com sucesso!` :
+                    product ? `Peça "${product.code}" adicionada no produto #${targetIndex + 1}!` :
+                    identifiedCode ? `Peça "${identifiedCode}" adicionada no produto #${targetIndex + 1}!` :
                     'Peça adicionada com sucesso!',
                     'success'
                 );
@@ -518,6 +530,7 @@ Nova Ordem de Serviço
             }
         }
     };
+
 
     // Módulo de IA
     const IA_SEARCH = {
