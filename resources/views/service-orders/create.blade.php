@@ -53,8 +53,8 @@ Nova Ordem de Serviço
                         </div>
                         <div class="col-md-3">
                             <div class="form-group">
-                                <label for="client_code">Cód. Cliente *</label>
-                                <input type="text" class="form-control" id="client_code" name="client_code" required>
+                                <label for="client_code">Cód. Cliente</label>
+                                <input type="text" class="form-control" id="client_code" name="client_code">
                             </div>
                         </div>
                         <div class="col-md-3">
@@ -358,7 +358,7 @@ Nova Ordem de Serviço
                                 <option value="DO">Dourado</option>
                                 <option value="RH">Ródio branco</option>
                                 <option value="RO">Rose</option>
-                                <option value="NE">Ródio negro</option>
+                                <option value="NE">Ródio negro</option> 
                                 <option value="MIX">Mix de banhos</option>
                                 <option value="CL">Colorido</option>
                             </select>
@@ -728,9 +728,7 @@ Nova Ordem de Serviço
                                         </div>
                                     ` : ''}
                                 </div>
-                                <span class="badge badge-${similarityPercent > 80 ? 'success' : similarityPercent > 60 ? 'warning' : 'danger'} similarity-badge">
-                                    ${similarityPercent}%
-                                </span>
+                                
                             </div>
                             
                             <div class="mt-1">
@@ -767,11 +765,10 @@ Nova Ordem de Serviço
                 });
 
                 STATE.currentSearchResults = data;
-
                 const stats = this.calculateStats(matches);
                 const statsDiv = document.createElement('div');
-                statsDiv.className = 'alert alert-secondary mt-3';
-                statsDiv.innerHTML = `<small><strong>Estatísticas:</strong> ${stats.highSimilarity} alta similaridade (>80%) | ${stats.mediumSimilarity} média similaridade (60-80%) | ${stats.lowSimilarity} baixa similaridade (<60%)</small>`;
+                // statsDiv.className = 'alert alert-secondary mt-3';
+                // statsDiv.innerHTML = `<small><strong>Estatísticas:</strong> ${stats.highSimilarity} alta similaridade (>80%) | ${stats.mediumSimilarity} média similaridade (60-80%) | ${stats.lowSimilarity} baixa similaridade (<60%)</small>`;
                 resultsList.appendChild(statsDiv);
 
             } else {

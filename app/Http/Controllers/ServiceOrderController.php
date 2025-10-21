@@ -53,6 +53,10 @@ class ServiceOrderController extends Controller
     public function store(Request $request)
     {
 
+        if (empty($request->client_code)) {
+            $request->merge(['client_code' => '0']);
+        }
+
         try {
             $validated = $request->validate([
                 'client_name' => 'required|string|max:255',
