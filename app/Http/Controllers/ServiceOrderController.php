@@ -52,6 +52,10 @@ class ServiceOrderController extends Controller
 
     public function store(Request $request)
     {
+        // $lastOrder = ServiceOrder::orderBy('id', 'desc')->first();
+
+        // dd($lastOrder);
+
         if (empty($request->client_code)) {
             $request->merge(['client_code' => '0']);
         }
@@ -81,7 +85,7 @@ class ServiceOrderController extends Controller
                         'identified_product_name' => $itemData['product_name'] ?? null,
                         // 'product_id' => $itemData['product_id'] ?? null,
                         'services' => $itemData['services'] ?? null,
-                        
+
                         'coating' => $itemData['coating'] ?? null,
                         'observations' => $itemData['observations'] ?? null,
                         'ai_identified_code' => $itemData['ai_identified_code'] ?? null,

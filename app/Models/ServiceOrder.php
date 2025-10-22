@@ -143,10 +143,14 @@ class ServiceOrder extends Model
 
         static::creating(function ($model) {
             if (empty($model->order_number)) {
-                $model->order_number = 'OS' . date('Ymd') . str_pad(ServiceOrder::count() + 1, 4, '0', STR_PAD_LEFT);
+                $lastOrder = ServiceOrder::orderBy('id', 'desc')->first();
+                $nextNumber = $lastOrder
+                    ? intval(substr($lastOrder->order_number, -4)) + 1
+                    : 1;
+
+                $model->order_number = 'OS' . date('Ymd') . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
             }
-            
-            // Status inicial automático
+
             if (empty($model->status)) {
                 $model->status = self::STATUS_CREATED;
             }
