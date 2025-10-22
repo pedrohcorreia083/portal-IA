@@ -81,6 +81,7 @@ class ServiceOrderController extends Controller
                         'identified_product_name' => $itemData['product_name'] ?? null,
                         // 'product_id' => $itemData['product_id'] ?? null,
                         'services' => $itemData['services'] ?? null,
+                        
                         'coating' => $itemData['coating'] ?? null,
                         'observations' => $itemData['observations'] ?? null,
                         'ai_identified_code' => $itemData['ai_identified_code'] ?? null,

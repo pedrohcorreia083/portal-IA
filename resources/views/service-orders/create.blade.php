@@ -456,6 +456,7 @@ Nova Ordem de Serviço
         remove(index) {
             const element = document.getElementById(`product-${index}`);
             if (element) element.remove();
+            
         },
 
         addFromAI(product, identifiedCode) {
