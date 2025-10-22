@@ -71,7 +71,7 @@ class ServiceOrderController extends Controller
             // Cria a OS com status inicial
             $serviceOrderData = collect($validated)->except('items')->toArray();
             $serviceOrderData['status'] = self::STATUS_CREATED;
-
+            
             $serviceOrder = ServiceOrder::create($serviceOrderData);
 
             // Verifica se existem itens antes de iterar
@@ -79,7 +79,7 @@ class ServiceOrderController extends Controller
                 foreach ($request->items as $itemData) {
                     $item = new ServiceOrderItem([
                         'identified_product_name' => $itemData['product_name'] ?? null,
-                        'product_id' => $itemData['product_id'] ?? null,
+                        // 'product_id' => $itemData['product_id'] ?? null,
                         'services' => $itemData['services'] ?? null,
                         'coating' => $itemData['coating'] ?? null,
                         'observations' => $itemData['observations'] ?? null,
