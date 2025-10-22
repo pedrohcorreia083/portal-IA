@@ -6,19 +6,14 @@
 <div class="d-flex justify-content-between align-items-center">
     <div>
         <h1>Análise Técnica</h1>
-        <small>OS #{{ $serviceOrder->id }} - {{ $serviceOrder->client_name }}</small>
-    </div>
-    <div class="text-right">
-        <span class="badge badge-{{ $serviceOrder->status === 'created' ? 'warning' : 'info' }}">
-            {{ $serviceOrder->status_label }}
-        </span>
+        <small>OS #{{ $serviceOrder->order_number }} - {{ $serviceOrder->client_name }} </small>
     </div>
 </div>
 @endsection
 
 @section('breadcrumb')
 <li class="breadcrumb-item"><a href="{{ route('service-orders.index') }}">Ordens de Serviço</a></li>
-<li class="breadcrumb-item"><a href="{{ route('service-orders.show', $serviceOrder) }}">OS #{{ $serviceOrder->id }}</a></li>
+<li class="breadcrumb-item"><a href="{{ route('service-orders.show', $serviceOrder) }}">OS #{{ $serviceOrder->order_number }}</a></li>
 <li class="breadcrumb-item active">Análise Técnica</li>
 @endsection
 
@@ -72,10 +67,8 @@
                         <div class="row">
                             <div class="col-md-11">
                                 <h5 class="mb-3">
-                                    <i class="fas fa-gem text-primary"></i>
-                                    Produto #{{ $index + 1 }} -
+                                    Produto{{ $index + 1 }} -
                                     {{ $item->identified_product_name ?? 'Produto não encontrado' }}
-                                    <small class="text-muted">({{ $item->product->code ?? 'N/A' }})</small>
                                 </h5>
                             </div>
                             <div class="col-md-1 text-right">
@@ -92,9 +85,10 @@
                             <div class="col-md-6">
                                 <strong>Serviços Solicitados:</strong><br>
                                 <div class="mt-1">
-                                    @foreach($item->services as $service)
+                                    @foreach(json_decode($item->services, true) ?? [] as $service)
                                     <span class="badge badge-secondary">{{ $service }}</span>
                                     @endforeach
+
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -108,8 +102,6 @@
                                     'CL' => 'Colorido'
                                 ][$item->coating] ?? $item->coating : 'Não especificado' }}<br>
 
-                                <strong>Código IA:</strong>
-                                {{ $item->ai_identified_code ?? 'Não identificado' }}
                             </div>
                         </div>
 

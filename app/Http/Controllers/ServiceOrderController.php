@@ -119,6 +119,9 @@ class ServiceOrderController extends Controller
     public function analysis(ServiceOrder $serviceOrder)
     {
         $serviceOrder->load('items.product');
+
+        //dd($serviceOrder->items);
+        
         return view('service-orders.analysis', compact('serviceOrder'));
     }
 
