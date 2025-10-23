@@ -26,23 +26,14 @@ Ordens de Serviço
         <form method="GET" action="{{ route('service-orders.index') }}">
             <div class="row">
                 <div class="col-md-3 mb-2">
-                    <input type="text" name="order_number" class="form-control"
-                        placeholder="Nº OS"
-                        value="{{ request('order_number') }}">
+                    <input type="text" name="order_number" class="form-control" placeholder="Nº OS" value="{{ request('order_number') }}">
                 </div>
-
                 <div class="col-md-3 mb-2">
-                    <input type="text" name="client_name" class="form-control"
-                        placeholder="Cliente"
-                        value="{{ request('client_name') }}">
+                    <input type="text" name="client_name" class="form-control" placeholder="Cliente" value="{{ request('client_name') }}">
                 </div>
-
                 <div class="col-md-3 mb-2">
-                    <input type="text" name="consultant_name" class="form-control"
-                        placeholder="Consultor(a)"
-                        value="{{ request('consultant_name') }}">
+                    <input type="text" name="consultant_name" class="form-control" placeholder="Consultor(a)" value="{{ request('consultant_name') }}">
                 </div>
-
                 <div class="col-md-3 mb-2">
                     <select name="origin" class="form-control">
                         <option value="">Origem</option>
@@ -54,7 +45,6 @@ Ordens de Serviço
                     </select>
                 </div>
             </div>
-
             <div class="mt-2 text-right">
                 <button type="submit" class="btn btn-primary btn-sm">
                     <i class="fas fa-search"></i> Filtrar
@@ -67,23 +57,25 @@ Ordens de Serviço
     </div>
     <!-- /FILTROS -->
 
+    <!-- TABELA -->
     <div class="card-body p-0">
-        <table class="table table-striped">
+        <table class="table table-bordered">
             <thead>
                 <tr>
+                    <th style="width: 10px">#</th>
                     <th>Nº OS</th>
                     <th>Cliente</th>
                     <th>Consultor</th>
                     <th>Origem</th>
                     <th>Data</th>
                     <th>Itens</th>
-                    <th>Status</th>
-                    <th>Ações</th>
+                    <th style="width: 100px">Ações</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($serviceOrders as $serviceOrder)
-                <tr>
+                <tr class="align-middle">
+                    <td>{{ $loop->iteration + (($serviceOrders->currentPage() - 1) * $serviceOrders->perPage()) }}</td>
                     <td>{{ $serviceOrder->order_number }}</td>
                     <td>{{ $serviceOrder->client_name }}</td>
                     <td>{{ $serviceOrder->consultant_name }}</td>
@@ -91,29 +83,45 @@ Ordens de Serviço
                     <td>{{ $serviceOrder->order_date->format('d/m/Y') }}</td>
                     <td>{{ $serviceOrder->total_items }}</td>
                     <td>
-                        <span class="badge badge-{{ $serviceOrder->status === 'completed' ? 'success' : ($serviceOrder->status === 'cancelled' ? 'danger' : 'warning') }}">
-                            {{ ucfirst($serviceOrder->status) }}
-                        </span>
-                    </td>
-                    <td>
-                        <a href="{{ route('service-orders.show', $serviceOrder) }}" class="btn btn-info btn-sm">
-                            <i class="fas fa-eye"></i>
-                        </a>
-                        <a href="{{ route('service-orders.edit', $serviceOrder) }}" class="btn btn-warning btn-sm">
-                            <i class="fas fa-edit"></i>
-                        </a>
+                        <div class="btn-group">
+                            <a href="{{ route('service-orders.show', $serviceOrder) }}" class="btn btn-info btn-sm" title="Visualizar">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            <a href="{{ route('service-orders.edit', $serviceOrder) }}" class="btn btn-warning btn-sm" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </div>
                     </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="8" class="text-center">Nenhuma ordem de serviço encontrada.</td>
+                    <td colspan="9" class="text-center">Nenhuma ordem de serviço encontrada.</td>
                 </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
-    <div class="card-footer">
-        {{ $serviceOrders->links() }}
+    <!-- /TABELA -->
+
+    <div class="card-footer clearfix">
+        <ul class="pagination pagination-sm m-0 float-end">
+            {{-- Botão Anterior --}}
+            <li class="page-item {{ $serviceOrders->onFirstPage() ? 'disabled' : '' }}">
+                <a class="page-link" href="{{ $serviceOrders->previousPageUrl() }}">&laquo;</a>
+            </li>
+
+            {{-- Páginas --}}
+            @for ($page = 1; $page <= $serviceOrders->lastPage(); $page++)
+                <li class="page-item {{ $page == $serviceOrders->currentPage() ? 'active' : '' }}">
+                    <a class="page-link" href="{{ $serviceOrders->url($page) }}">{{ $page }}</a>
+                </li>
+                @endfor
+
+                {{-- Botão Próximo --}}
+                <li class="page-item {{ !$serviceOrders->hasMorePages() ? 'disabled' : '' }}">
+                    <a class="page-link" href="{{ $serviceOrders->nextPageUrl() }}">&raquo;</a>
+                </li>
+        </ul>
     </div>
 </div>
 @endsection
