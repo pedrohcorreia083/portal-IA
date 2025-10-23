@@ -85,7 +85,7 @@
                             <div class="col-md-6">
                                 <strong>Serviços Solicitados:</strong><br>
                                 <div class="mt-1">
-                                    @foreach(json_decode($item->services, true) ?? [] as $service)
+                                    @foreach($item->services ?? [] as $service)
                                     <span class="badge badge-secondary">{{ $service }}</span>
                                     @endforeach
 
