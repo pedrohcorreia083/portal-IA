@@ -24,24 +24,7 @@ class ServiceOrderItem extends Model
         'ai_identified_code',
     ];
 
-    protected $casts = [
-        'services' => 'array',
-        'is_guarantee' => 'boolean',
-        'repair_price' => 'decimal:2',
-    ];
-
-    // Relacionamentos
-    public function serviceOrder()
-    {
-        return $this->belongsTo(ServiceOrder::class);
-    }
-
-    public function product()
-    {
-        return $this->belongsTo(Product::class);
-    }
-
-    // Constantes para serviços (mantido)
+    // Constantes para serviços
     const SERVICES = [
         'B' => 'Banhar',
         'RP' => 'Repor pedra',
@@ -51,7 +34,7 @@ class ServiceOrderItem extends Model
         'RM' => 'Remontar',
     ];
 
-    // NOVAS CONSTANTES para status técnico
+    // Constantes para status técnico
     const TECHNICAL_STATUS_RP = 'RP'; // Reparo realizado
     const TECHNICAL_STATUS_SC = 'SC'; // Sem conserto
     const TECHNICAL_STATUS_GTC = 'GTC'; // Garantia troca física
@@ -66,7 +49,7 @@ class ServiceOrderItem extends Model
         self::TECHNICAL_STATUS_N => 'Não é LBF',
     ];
 
-    // Constantes para banhos (se necessário)
+    // Constantes para banhos
     const COATINGS = [
         'DO' => 'Dourado',
         'RH' => 'Ródio branco',
@@ -76,28 +59,51 @@ class ServiceOrderItem extends Model
         'CL' => 'Colorido',
     ];
 
-    // Métodos de acesso
-    public function getServicesNamesAttribute(): array
+    // Relacionamentos
+    public function serviceOrder()
     {
-        $services = $this->services;
-
-        // Se for string (JSON), decodifica
-        if (is_string($services)) {
-            $services = json_decode($services, true);
-        }
-
-        // Garante que é um array
-        if (!is_array($services)) {
-            $services = [];
-        }
-
-        return array_map(function ($service) {
-            return self::SERVICES[$service] ?? $service;
-        }, $services);
+        return $this->belongsTo(ServiceOrder::class);
     }
 
+    public function product()
+    {
+        return $this->belongsTo(Product::class);
+    }
 
-    // NOVO: Nome do status técnico
+    // Accessors
+    public function getServicesAttribute($value): array
+    {
+        if (empty($value)) {
+            return [];
+        }
+
+        // JSON válido
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return $decoded;
+            }
+
+            // fallback: string separada por vírgula
+            return array_filter(array_map('trim', explode(',', $value)));
+        }
+
+        if (is_array($value)) {
+            return $value;
+        }
+
+        return [];
+    }
+
+    public function getServicesNamesAttribute(): array
+    {
+        return array_map(
+            fn($service) => self::SERVICES[$service] ?? $service,
+            $this->services
+        );
+    }
+
     public function getTechnicalStatusNameAttribute(): ?string
     {
         return self::TECHNICAL_STATUSES[$this->technical_status] ?? $this->technical_status;
@@ -108,7 +114,17 @@ class ServiceOrderItem extends Model
         return self::COATINGS[$this->coating] ?? $this->coating;
     }
 
-    // NOVOS MÉTODOS para análise
+    // Mutators (opcional - se você quiser garantir que services seja salvo como JSON)
+    public function setServicesAttribute($value)
+    {
+        if (is_array($value)) {
+            $this->attributes['services'] = json_encode($value);
+        } else {
+            $this->attributes['services'] = $value;
+        }
+    }
+
+    // Métodos para análise
     public function hasTechnicalAnalysis(): bool
     {
         return !is_null($this->is_guarantee) && !is_null($this->technical_status);
@@ -128,6 +144,7 @@ class ServiceOrderItem extends Model
         ]);
     }
 
+    // Accessors para status de análise
     public function getAnalysisStatusAttribute(): string
     {
         if (is_null($this->is_guarantee) || is_null($this->technical_status)) {
@@ -162,7 +179,8 @@ class ServiceOrderItem extends Model
     // Escopos para análise
     public function scopePendingAnalysis($query)
     {
-        return $query->whereNull('is_guarantee')->orWhereNull('technical_status');
+        return $query->whereNull('is_guarantee')
+            ->orWhereNull('technical_status');
     }
 
     public function scopeGuarantee($query)
