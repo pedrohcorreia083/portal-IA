@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class ServiceOrderItem extends Model
 {
@@ -22,6 +23,11 @@ class ServiceOrderItem extends Model
         'technical_status',
         'technical_observations',
         'ai_identified_code',
+    ];
+
+    // Cast para services
+    protected $casts = [
+        'services' => 'array',
     ];
 
     // Constantes para serviços
@@ -70,37 +76,61 @@ class ServiceOrderItem extends Model
         return $this->belongsTo(Product::class);
     }
 
-    // Accessors
-    public function getServicesAttribute($value): array
+    // Accessor para services (versão segura)
+    protected function services(): Attribute
     {
-        if (empty($value)) {
+        return Attribute::make(
+            get: function ($value) {
+                if (empty($value)) {
+                    return [];
+                }
+
+                // Se já for array, retorna diretamente
+                if (is_array($value)) {
+                    return $value;
+                }
+
+                // Se for string, tenta decodificar JSON
+                if (is_string($value)) {
+                    $decoded = json_decode($value, true);
+
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        return $decoded;
+                    }
+
+                    // fallback: string separada por vírgula
+                    $services = array_filter(array_map('trim', explode(',', $value)));
+                    return array_values($services); // Remove chaves numéricas vazias
+                }
+
+                return [];
+            },
+            set: function ($value) {
+                if (is_array($value)) {
+                    // Remove valores vazios e mantém apenas os válidos
+                    $filtered = array_filter($value, function ($item) {
+                        return !empty($item) && trim($item) !== '';
+                    });
+                    return json_encode(array_values($filtered));
+                }
+
+                return $value;
+            }
+        );
+    }
+
+    // Accessor para serviços com nomes
+    public function getServicesNamesAttribute(): array
+    {
+        $services = $this->services;
+
+        if (!is_array($services)) {
             return [];
         }
 
-        // JSON válido
-        if (is_string($value)) {
-            $decoded = json_decode($value, true);
-
-            if (json_last_error() === JSON_ERROR_NONE) {
-                return $decoded;
-            }
-
-            // fallback: string separada por vírgula
-            return array_filter(array_map('trim', explode(',', $value)));
-        }
-
-        if (is_array($value)) {
-            return $value;
-        }
-
-        return [];
-    }
-
-    public function getServicesNamesAttribute(): array
-    {
         return array_map(
             fn($service) => self::SERVICES[$service] ?? $service,
-            $this->services
+            $services
         );
     }
 
@@ -112,16 +142,6 @@ class ServiceOrderItem extends Model
     public function getCoatingNameAttribute(): ?string
     {
         return self::COATINGS[$this->coating] ?? $this->coating;
-    }
-
-    // Mutators (opcional - se você quiser garantir que services seja salvo como JSON)
-    public function setServicesAttribute($value)
-    {
-        if (is_array($value)) {
-            $this->attributes['services'] = json_encode($value);
-        } else {
-            $this->attributes['services'] = $value;
-        }
     }
 
     // Métodos para análise
