@@ -144,28 +144,39 @@ class ServiceOrderItem extends Model
     }
 
     // Accessors (com tratamento para null)
-    public function getServicesAttribute($value): array
-    {
-        if (empty($value)) {
-            return [];
-        }
+    // public function getServicesAttribute($value): array
+    // {
+    //     if (empty($value)) {
+    //         return [];
+    //     }
 
-        if (is_string($value)) {
-            $decoded = json_decode($value, true);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                return $decoded;
-            }
-            return array_filter(array_map('trim', explode(',', $value)));
-        }
+    //     if (is_string($value)) {
+    //         $decoded = json_decode($value, true);
+    //         if (json_last_error() === JSON_ERROR_NONE) {
+    //             return $decoded;
+    //         }
+    //         return array_filter(array_map('trim', explode(',', $value)));
+    //     }
 
-        return is_array($value) ? $value : [];
-    }
+    //     return is_array($value) ? $value : [];
+    // }
 
     public function getServicesNamesAttribute(): array
     {
+        $services = $this->services ?? [];
+
+        // Garantia extra caso venha string
+        if (is_string($services)) {
+            $services = json_decode($services, true) ?? [];
+        }
+
+        if (!is_array($services)) {
+            $services = [];
+        }
+
         return array_map(
             fn($service) => self::SERVICES[$service] ?? $service,
-            $this->services
+            $services
         );
     }
 

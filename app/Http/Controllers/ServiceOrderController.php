@@ -78,7 +78,7 @@ class ServiceOrderController extends Controller
                 foreach ($request->items as $itemData) {
                     $item = new ServiceOrderItem([
                         'identified_product_name' => $itemData['product_name'] ?? null,
-                        'services' => $itemData['services'] ?? null,
+                        'services' => $itemData['services'] ?? [],
                         'coating' => $itemData['coating'] ?? null,
                         'observations' => $itemData['observations'] ?? null,
                         'ai_identified_code' => $itemData['ai_identified_code'] ?? null,
@@ -190,7 +190,7 @@ class ServiceOrderController extends Controller
                 ->withErrors(['error' => 'Erro ao salvar análise: ' . $e->getMessage()]);
         }
     }
-    
+
     public function identifyProduct(Request $request)
     {
         try {
@@ -316,13 +316,21 @@ class ServiceOrderController extends Controller
             $updatedItemIds = [];
 
             foreach ($request->items as $itemData) {
-                $itemData['services'] = json_encode($itemData['services'] ?? []);
-                $productName = $itemData['product_name'] ?? $itemData['identified_product_name'] ?? null;
+
+                $itemData['services'] = $itemData['services'] ?? [];
+
+                $productName = $itemData['product_name']
+                    ?? $itemData['identified_product_name']
+                    ?? null;
+
+                $item = null;
 
                 if (!empty($itemData['id'])) {
+
                     $item = $serviceOrder->items()->find($itemData['id']);
 
                     if ($item) {
+
                         $item->update([
                             'identified_product_name' => $productName,
                             'product_id' => null,
@@ -331,9 +339,11 @@ class ServiceOrderController extends Controller
                             'observations' => $itemData['observations'] ?? null,
                             'ai_identified_code' => $itemData['ai_identified_code'] ?? null,
                         ]);
+
                         $updatedItemIds[] = $item->id;
                     } else {
-                        $newItem = $serviceOrder->items()->create([
+
+                        $item = $serviceOrder->items()->create([
                             'identified_product_name' => $productName,
                             'product_id' => null,
                             'coating' => $itemData['coating'] ?? null,
@@ -341,10 +351,12 @@ class ServiceOrderController extends Controller
                             'observations' => $itemData['observations'] ?? null,
                             'ai_identified_code' => $itemData['ai_identified_code'] ?? null,
                         ]);
-                        $updatedItemIds[] = $newItem->id;
+
+                        $updatedItemIds[] = $item->id;
                     }
                 } else {
-                    $newItem = $serviceOrder->items()->create([
+
+                    $item = $serviceOrder->items()->create([
                         'identified_product_name' => $productName,
                         'product_id' => null,
                         'coating' => $itemData['coating'] ?? null,
@@ -352,12 +364,21 @@ class ServiceOrderController extends Controller
                         'observations' => $itemData['observations'] ?? null,
                         'ai_identified_code' => $itemData['ai_identified_code'] ?? null,
                     ]);
-                    $updatedItemIds[] = $newItem->id;
+
+                    $updatedItemIds[] = $item->id;
                 }
 
-                if (isset($itemData['product_image']) && $itemData['product_image'] instanceof \Illuminate\Http\UploadedFile) {
-                    $path = $itemData['product_image']->store('service-order-items', 'public');
-                    $item->update(['product_image' => $path]);
+                // upload da imagem
+                if (
+                    isset($itemData['product_image']) &&
+                    $itemData['product_image'] instanceof \Illuminate\Http\UploadedFile
+                ) {
+                    $path = $itemData['product_image']
+                        ->store('service-order-items', 'public');
+
+                    $item->update([
+                        'product_image' => $path
+                    ]);
                 }
             }
 
