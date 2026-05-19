@@ -9,7 +9,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Http;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Illuminate\Support\Facades\Log;
+use App\Exports\ServiceOrdersExport;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ServiceOrderController extends Controller
 {
@@ -52,10 +53,6 @@ class ServiceOrderController extends Controller
 
     public function store(Request $request)
     {
-        // $lastOrder = ServiceOrder::orderBy('id', 'desc')->first();
-
-        // dd($lastOrder);
-
         if (empty($request->client_code)) {
             $request->merge(['client_code' => '0']);
         }
@@ -72,20 +69,16 @@ class ServiceOrderController extends Controller
                 'observations' => 'nullable|string',
             ]);
 
-            // Cria a OS com status inicial
             $serviceOrderData = collect($validated)->except('items')->toArray();
             $serviceOrderData['status'] = self::STATUS_CREATED;
-            
+
             $serviceOrder = ServiceOrder::create($serviceOrderData);
 
-            // Verifica se existem itens antes de iterar
             if (!empty($request->items) && is_array($request->items)) {
                 foreach ($request->items as $itemData) {
                     $item = new ServiceOrderItem([
                         'identified_product_name' => $itemData['product_name'] ?? null,
-                        // 'product_id' => $itemData['product_id'] ?? null,
                         'services' => $itemData['services'] ?? null,
-
                         'coating' => $itemData['coating'] ?? null,
                         'observations' => $itemData['observations'] ?? null,
                         'ai_identified_code' => $itemData['ai_identified_code'] ?? null,
@@ -108,81 +101,96 @@ class ServiceOrderController extends Controller
                 ->route('service-orders.show', $serviceOrder)
                 ->with('success', 'Ordem de Serviço criada com sucesso! Aguardando análise técnica.');
         } catch (\Throwable $e) {
-            Log::error('Erro ao salvar OS', [
-                'mensagem' => $e->getMessage(),
-                'arquivo' => $e->getFile(),
-                'linha' => $e->getLine(),
-            ]);
-
             return back()
                 ->withInput()
                 ->withErrors(['error' => 'Erro ao salvar OS: ' . $e->getMessage()]);
         }
     }
 
-    // NOVO MÉTODO: Tela de análise técnica
     public function analysis(ServiceOrder $serviceOrder)
     {
-        $serviceOrder->load('items.product');
-
-        //dd($serviceOrder->items);
-        
-        return view('service-orders.analysis', compact('serviceOrder'));
-    }
-
-    // NOVO MÉTODO: Salvar análise técnica
-    public function saveAnalysis(Request $request, ServiceOrder $serviceOrder)
-    {
-        if (!auth()->user()->isTechnical()) {
+        if (!auth()->user()->isTechnical() && !auth()->user()->isAdmin()) {
             return redirect()->route('service-orders.show', $serviceOrder)
                 ->with('error', 'Acesso permitido apenas para o setor técnico.');
         }
 
+        $serviceOrder->load('items');
+
+        $pendingItems = $serviceOrder->items->filter(function ($item) {
+            return $item->needsAnalysis();
+        });
+
+        $analyzedItems = $serviceOrder->items->filter(function ($item) {
+            return $item->hasTechnicalAnalysis();
+        });
+
+        return view('service-orders.analysis', compact('serviceOrder', 'pendingItems', 'analyzedItems'));
+    }
+
+    public function saveAnalysis(Request $request, ServiceOrder $serviceOrder)
+    {
+
         try {
             $validated = $request->validate([
-                'items' => 'required|array',
-                'items.*.id' => 'required|exists:service_order_items,id',
-                'items.*.is_guarantee' => 'required|boolean',
-                'items.*.repair_price' => 'nullable|required_if:items.*.is_guarantee,false|numeric|min:0',
-                'items.*.technical_status' => 'required|in:RP,SC,GTC,GCG,N',
-                'items.*.technical_observations' => 'nullable|string',
+                'item_id' => 'required|exists:service_order_items,id',
+                'is_guarantee' => 'required|boolean',
+                'repair_price' => 'nullable|required_if:is_guarantee,false|numeric|min:0',
+                'technical_status' => 'required|in:RP,SC,GTC,GCG,N',
+                'technical_observations' => 'nullable|string',
             ]);
 
-            foreach ($request->items as $itemData) {
-                $item = ServiceOrderItem::find($itemData['id']);
+            $item = ServiceOrderItem::findOrFail($validated['item_id']);
 
-                if ($item && $item->service_order_id === $serviceOrder->id) {
-                    $item->update([
-                        'is_guarantee' => $itemData['is_guarantee'],
-                        'repair_price' => $itemData['is_guarantee'] ? null : $itemData['repair_price'],
-                        'technical_status' => $itemData['technical_status'],
-                        'technical_observations' => $itemData['technical_observations'] ?? null,
-                    ]);
-                }
+            if ($item->service_order_id !== $serviceOrder->id) {
+                return response()->json(['error' => 'Item não pertence a esta OS'], 400);
             }
 
-            // Atualizar status da OS
-            $serviceOrder->update([
-                'status' => ServiceOrder::STATUS_UNDER_ANALYSIS,
-                'technical_analyst_id' => auth()->id(),
-                'analysis_date' => now(),
-            ]);
+            if ($validated['is_guarantee']) {
+                $validated['repair_price'] = null;
+            }
+
+            $item->completeAnalysis(
+                $validated['technical_status'],
+                $validated['is_guarantee'],
+                $validated['repair_price'],
+                $validated['technical_observations']
+            );
+
+            $pendingCount = $serviceOrder->items->filter(function ($i) {
+                return $i->needsAnalysis();
+            })->count();
+
+            if ($pendingCount === 0) {
+                $serviceOrder->update([
+                    'status' => ServiceOrder::STATUS_APPROVED,
+                    'technical_analyst_id' => auth()->id(),
+                    'analysis_date' => now(),
+                ]);
+            }
+
+            if ($request->ajax()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Análise salva com sucesso!',
+                    'item' => $item,
+                    'pending_count' => $pendingCount
+                ]);
+            }
 
             return redirect()
                 ->route('service-orders.show', $serviceOrder)
-                ->with('success', 'Análise técnica salva com sucesso!');
+                ->with('success', 'Análise do item salva com sucesso!');
         } catch (\Throwable $e) {
-            Log::error('Erro ao salvar análise técnica', [
-                'service_order_id' => $serviceOrder->id,
-                'error' => $e->getMessage()
-            ]);
+            if ($request->ajax()) {
+                return response()->json(['error' => $e->getMessage()], 500);
+            }
 
             return back()
                 ->withInput()
                 ->withErrors(['error' => 'Erro ao salvar análise: ' . $e->getMessage()]);
         }
     }
-
+    
     public function identifyProduct(Request $request)
     {
         try {
@@ -194,39 +202,19 @@ class ServiceOrderController extends Controller
             $tempPath = $request->file('image')->getPathname();
             $url = rtrim($this->flaskApiUrl, '/') . '/analisar';
 
-            // 🔍 Log antes de enviar
-            Log::info('📤 Enviando imagem para IA', [
-                'url' => $url,
-                'product_type' => $request->product_type,
-                'file_path' => $tempPath,
-            ]);
-
             $response = Http::timeout(60)
                 ->attach('file', file_get_contents($tempPath), 'image.jpg')
                 ->post($url, [
                     'produto' => $request->product_type,
                 ]);
 
-            // 🔍 Log da resposta bruta
-            Log::info('📥 Resposta da IA', [
-                'status' => $response->status(),
-                'body' => $response->body(),
-            ]);
-
-            // Verifica se a API Flask respondeu OK
             if ($response->failed()) {
-                Log::error('❌ Erro ao chamar IA', [
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                ]);
-
                 return response()->json([
                     'success' => false,
                     'error' => 'Erro na análise da IA: ' . $response->body(),
                 ], 500);
             }
 
-            // Processa o JSON da resposta
             $data = $response->json();
             $bestMatch = $data['mais_semelhantes'][0] ?? null;
             $identifiedCode = $bestMatch ? $this->extractCodeFromFileName($bestMatch['arquivo']) : null;
@@ -250,21 +238,12 @@ class ServiceOrderController extends Controller
                 'similarity' => $bestMatch ? round($bestMatch['similaridade'] * 100, 1) : 0,
             ]);
         } catch (\Throwable $e) {
-            Log::error('🔥 Exceção na identificação por IA', [
-                'message' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
             return response()->json([
                 'success' => false,
                 'error' => 'Erro interno: ' . $e->getMessage(),
             ], 500);
         }
     }
-
-
 
     private function listarCategoriasPrincipais()
     {
@@ -313,7 +292,6 @@ class ServiceOrderController extends Controller
 
         $products = Product::where('is_active', true)->get();
 
-        // Defina suas categorias principais aqui
         $categoriasPrincipais = $this->listarCategoriasPrincipais();
 
         return view('service-orders.edit', compact('serviceOrder', 'products', 'categoriasPrincipais'));
@@ -321,14 +299,7 @@ class ServiceOrderController extends Controller
 
     public function update(Request $request, ServiceOrder $serviceOrder)
     {
-        Log::info('🔄 Iniciando update da OS', [
-            'service_order_id' => $serviceOrder->id,
-            'user_id' => auth()->id(),
-            'dados' => $request->all()
-        ]);
-
         try {
-            // Atualizar dados principais
             $serviceOrder->update([
                 'client_name' => $request->client_name,
                 'client_document' => $request->client_document,
@@ -341,24 +312,17 @@ class ServiceOrderController extends Controller
                 'is_guarantee' => $request->has('is_guarantee'),
             ]);
 
-            // Processar itens
             $existingItemIds = $serviceOrder->items->pluck('id')->toArray();
             $updatedItemIds = [];
 
-            foreach ($request->items as $index => $itemData) {
-                Log::info("🔹 Processando item #{$index}", $itemData);
-
+            foreach ($request->items as $itemData) {
                 $itemData['services'] = json_encode($itemData['services'] ?? []);
-
-                // Define o nome do produto de forma segura
                 $productName = $itemData['product_name'] ?? $itemData['identified_product_name'] ?? null;
 
-                // Verifica se é um item existente
                 if (!empty($itemData['id'])) {
                     $item = $serviceOrder->items()->find($itemData['id']);
 
                     if ($item) {
-                        Log::info("✏️ Atualizando item existente", ['id' => $item->id]);
                         $item->update([
                             'identified_product_name' => $productName,
                             'product_id' => null,
@@ -369,7 +333,6 @@ class ServiceOrderController extends Controller
                         ]);
                         $updatedItemIds[] = $item->id;
                     } else {
-                        Log::warning("⚠️ ID informado ({$itemData['id']}) não encontrado, criando novo item.");
                         $newItem = $serviceOrder->items()->create([
                             'identified_product_name' => $productName,
                             'product_id' => null,
@@ -381,8 +344,6 @@ class ServiceOrderController extends Controller
                         $updatedItemIds[] = $newItem->id;
                     }
                 } else {
-                    // Criar novo item
-                    Log::info("🆕 Criando novo item", ['product_name' => $productName]);
                     $newItem = $serviceOrder->items()->create([
                         'identified_product_name' => $productName,
                         'product_id' => null,
@@ -394,19 +355,12 @@ class ServiceOrderController extends Controller
                     $updatedItemIds[] = $newItem->id;
                 }
 
-                // Upload da imagem (opcional)
                 if (isset($itemData['product_image']) && $itemData['product_image'] instanceof \Illuminate\Http\UploadedFile) {
                     $path = $itemData['product_image']->store('service-order-items', 'public');
                     $item->update(['product_image' => $path]);
                 }
             }
 
-            Log::info('✅ Itens processados', [
-                'existing' => $existingItemIds,
-                'updated' => $updatedItemIds
-            ]);
-
-            // Remover itens que não estão mais na lista
             $itemsToDelete = array_diff($existingItemIds, $updatedItemIds);
             if (!empty($itemsToDelete)) {
                 $serviceOrder->items()->whereIn('id', $itemsToDelete)->delete();
@@ -415,18 +369,11 @@ class ServiceOrderController extends Controller
             return redirect()->route('service-orders.show', $serviceOrder)
                 ->with('success', 'Ordem de Serviço atualizada com sucesso!');
         } catch (\Exception $e) {
-            Log::error('❌ Erro ao atualizar ordem de serviço', [
-                'mensagem' => $e->getMessage(),
-                'linha' => $e->getLine(),
-                'arquivo' => $e->getFile()
-            ]);
-
             return redirect()->back()
                 ->withInput()
                 ->with('error', 'Erro ao atualizar ordem de serviço: ' . $e->getMessage());
         }
     }
-
 
     public function destroy(ServiceOrder $serviceOrder)
     {
@@ -450,7 +397,6 @@ class ServiceOrderController extends Controller
             ->with('success', 'Status da OS atualizado com sucesso!');
     }
 
-    // PDF Methods
     public function pdf(ServiceOrder $serviceOrder)
     {
         $serviceOrder->load('items.product');
@@ -458,7 +404,6 @@ class ServiceOrderController extends Controller
         $pdf = PDF::loadView('service-orders.pdf', compact('serviceOrder'));
 
         $pdf->setPaper('A4', 'portrait');
-
 
         return $pdf->stream("OS-{$serviceOrder->order_number}.pdf");
     }
@@ -482,6 +427,50 @@ class ServiceOrderController extends Controller
     {
         if (!auth()->user()->isAdmin()) {
             abort(403, 'Acesso negado. Apenas administradores podem realizar esta ação.');
+        }
+    }
+
+    public function export(Request $request)
+    {
+        return Excel::download(new ServiceOrdersExport($request), 'ordens_servico.xlsx');
+    }
+
+    public function updateItemStatus(Request $request, ServiceOrder $serviceOrder, ServiceOrderItem $item)
+    {
+        if (!auth()->user()->isTechnical() && !auth()->user()->isAdmin()) {
+            abort(403);
+        }
+
+        $request->validate([
+            'action' => 'required|in:start_repair,complete_repair,approve_quality,reject_quality',
+            'observations' => 'nullable|string'
+        ]);
+
+        try {
+            switch ($request->action) {
+                case 'start_repair':
+                    $item->startRepair();
+                    $message = 'Reparo iniciado!';
+                    break;
+                case 'complete_repair':
+                    $item->completeRepair();
+                    $message = 'Reparo concluído, enviado para controle de qualidade!';
+                    break;
+                case 'approve_quality':
+                    $item->approveQuality();
+                    $message = 'Item aprovado no controle de qualidade!';
+                    break;
+                case 'reject_quality':
+                    $item->rejectQuality($request->observations);
+                    $message = 'Item reprovado, retornando para reparo!';
+                    break;
+            }
+
+            return redirect()
+                ->route('service-orders.show', $serviceOrder)
+                ->with('success', $message);
+        } catch (\Throwable $e) {
+            return back()->with('error', 'Erro ao atualizar status: ' . $e->getMessage());
         }
     }
 }

@@ -156,4 +156,13 @@ class ServiceOrder extends Model
             }
         });
     }
+
+    // No User model, adicione:
+
+    public function isTechnical()
+    {
+        return $this->user_type === 'technical' ||
+            $this->hasRole('technical') ||
+            $this->hasRole('tecnico');
+    }
 }

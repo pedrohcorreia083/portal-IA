@@ -4,11 +4,12 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class ServiceOrderItem extends Model
 {
     use HasFactory;
+
+    protected $table = 'service_order_items';
 
     protected $fillable = [
         'service_order_id',
@@ -23,11 +24,77 @@ class ServiceOrderItem extends Model
         'technical_status',
         'technical_observations',
         'ai_identified_code',
+        'item_status',
+        'analysis_started_at',
+        // 'analysis_completed_at',
+        'repair_started_at',
+        'repair_completed_at',
+        'quality_started_at',
+        'quality_completed_at',
+        'analyzed_by',
+        'repaired_by',
+        'quality_checked_by',
     ];
 
-    // Cast para services
     protected $casts = [
         'services' => 'array',
+        'is_guarantee' => 'boolean',
+        'analysis_started_at' => 'datetime',
+        // 'analysis_completed_at' => 'datetime',
+        'repair_started_at' => 'datetime',
+        'repair_completed_at' => 'datetime',
+        'quality_started_at' => 'datetime',
+        'quality_completed_at' => 'datetime',
+    ];
+
+    // Constantes para status técnico
+    const TECH_STATUS_RP = 'RP';
+    const TECH_STATUS_SC = 'SC';
+    const TECH_STATUS_GTC = 'GTC';
+    const TECH_STATUS_GCG = 'GCG';
+    const TECH_STATUS_N = 'N';
+
+    const TECHNICAL_STATUSES = [
+        self::TECH_STATUS_RP => 'Reparo realizado',
+        self::TECH_STATUS_SC => 'Sem conserto',
+        self::TECH_STATUS_GTC => 'Garantia troca física',
+        self::TECH_STATUS_GCG => 'Garantia crédito gerado',
+        self::TECH_STATUS_N => 'Não é LBF',
+    ];
+
+    // Constantes para status do item
+    const ITEM_STATUS_PENDING = 'pending';
+    const ITEM_STATUS_IN_ANALYSIS = 'in_analysis';
+    const ITEM_STATUS_WAITING_PARTS = 'waiting_parts';
+    const ITEM_STATUS_IN_REPAIR = 'in_repair';
+    const ITEM_STATUS_QUALITY_CHECK = 'quality_check';
+    const ITEM_STATUS_COMPLETED = 'completed';
+    const ITEM_STATUS_CANCELLED = 'cancelled';
+
+    const ITEM_STATUSES = [
+        self::ITEM_STATUS_PENDING => 'Pendente',
+        self::ITEM_STATUS_IN_ANALYSIS => 'Em Análise Técnica',
+        self::ITEM_STATUS_WAITING_PARTS => 'Aguardando Peças',
+        self::ITEM_STATUS_IN_REPAIR => 'Em Reparo',
+        self::ITEM_STATUS_QUALITY_CHECK => 'Controle de Qualidade',
+        self::ITEM_STATUS_COMPLETED => 'Concluído',
+        self::ITEM_STATUS_CANCELLED => 'Cancelado',
+    ];
+
+    // Cores para badges
+    const STATUS_COLORS = [
+        'pending' => 'secondary',
+        'in_analysis' => 'info',
+        'waiting_parts' => 'warning',
+        'in_repair' => 'primary',
+        'quality_check' => 'dark',
+        'completed' => 'success',
+        'cancelled' => 'danger',
+        'RP' => 'success',
+        'SC' => 'danger',
+        'GTC' => 'info',
+        'GCG' => 'warning',
+        'N' => 'secondary',
     ];
 
     // Constantes para serviços
@@ -38,21 +105,6 @@ class ServiceOrderItem extends Model
         'L' => 'Limpar',
         'S' => 'Soldar',
         'RM' => 'Remontar',
-    ];
-
-    // Constantes para status técnico
-    const TECHNICAL_STATUS_RP = 'RP'; // Reparo realizado
-    const TECHNICAL_STATUS_SC = 'SC'; // Sem conserto
-    const TECHNICAL_STATUS_GTC = 'GTC'; // Garantia troca física
-    const TECHNICAL_STATUS_GCG = 'GCG'; // Garantia crédito gerado
-    const TECHNICAL_STATUS_N = 'N'; // Não é LBF
-
-    const TECHNICAL_STATUSES = [
-        self::TECHNICAL_STATUS_RP => 'Reparo realizado',
-        self::TECHNICAL_STATUS_SC => 'Sem conserto',
-        self::TECHNICAL_STATUS_GTC => 'Garantia troca física',
-        self::TECHNICAL_STATUS_GCG => 'Garantia crédito gerado',
-        self::TECHNICAL_STATUS_N => 'Não é LBF',
     ];
 
     // Constantes para banhos
@@ -76,75 +128,93 @@ class ServiceOrderItem extends Model
         return $this->belongsTo(Product::class);
     }
 
-    // Accessor para services (versão segura)
-    protected function services(): Attribute
+    public function analyzedBy()
     {
-        return Attribute::make(
-            get: function ($value) {
-                if (empty($value)) {
-                    return [];
-                }
-
-                // Se já for array, retorna diretamente
-                if (is_array($value)) {
-                    return $value;
-                }
-
-                // Se for string, tenta decodificar JSON
-                if (is_string($value)) {
-                    $decoded = json_decode($value, true);
-
-                    if (json_last_error() === JSON_ERROR_NONE) {
-                        return $decoded;
-                    }
-
-                    // fallback: string separada por vírgula
-                    $services = array_filter(array_map('trim', explode(',', $value)));
-                    return array_values($services); // Remove chaves numéricas vazias
-                }
-
-                return [];
-            },
-            set: function ($value) {
-                if (is_array($value)) {
-                    // Remove valores vazios e mantém apenas os válidos
-                    $filtered = array_filter($value, function ($item) {
-                        return !empty($item) && trim($item) !== '';
-                    });
-                    return json_encode(array_values($filtered));
-                }
-
-                return $value;
-            }
-        );
+        return $this->belongsTo(User::class, 'analyzed_by');
     }
 
-    // Accessor para serviços com nomes
-    public function getServicesNamesAttribute(): array
+    public function repairedBy()
     {
-        $services = $this->services;
+        return $this->belongsTo(User::class, 'repaired_by');
+    }
 
-        if (!is_array($services)) {
+    public function qualityCheckedBy()
+    {
+        return $this->belongsTo(User::class, 'quality_checked_by');
+    }
+
+    // Accessors (com tratamento para null)
+    public function getServicesAttribute($value): array
+    {
+        if (empty($value)) {
             return [];
         }
 
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return $decoded;
+            }
+            return array_filter(array_map('trim', explode(',', $value)));
+        }
+
+        return is_array($value) ? $value : [];
+    }
+
+    public function getServicesNamesAttribute(): array
+    {
         return array_map(
             fn($service) => self::SERVICES[$service] ?? $service,
-            $services
+            $this->services
         );
     }
 
-    public function getTechnicalStatusNameAttribute(): ?string
+    public function getTechnicalStatusNameAttribute(): string
     {
-        return self::TECHNICAL_STATUSES[$this->technical_status] ?? $this->technical_status;
+        return self::TECHNICAL_STATUSES[$this->technical_status] ?? $this->technical_status ?? 'Pendente';
+    }
+
+    // CORREÇÃO AQUI - Trata valores nulos
+    public function getItemStatusNameAttribute(): string
+    {
+        // Se for null, retorna o status padrão
+        if (is_null($this->item_status)) {
+            return 'Pendente';
+        }
+
+        return self::ITEM_STATUSES[$this->item_status] ?? $this->item_status;
+    }
+
+    // CORREÇÃO AQUI - Trata valores nulos
+    public function getStatusColorAttribute(): string
+    {
+        // Primeiro tenta o item_status
+        if (!is_null($this->item_status)) {
+            return self::STATUS_COLORS[$this->item_status] ?? 'secondary';
+        }
+
+        // Se não tem item_status, tenta o technical_status
+        if (!is_null($this->technical_status)) {
+            return self::STATUS_COLORS[$this->technical_status] ?? 'secondary';
+        }
+
+        return 'secondary';
     }
 
     public function getCoatingNameAttribute(): ?string
     {
+        if (empty($this->coating)) {
+            return null;
+        }
         return self::COATINGS[$this->coating] ?? $this->coating;
     }
 
-    // Métodos para análise
+    // Métodos de análise técnica
+    public function needsAnalysis(): bool
+    {
+        return is_null($this->is_guarantee) && is_null($this->technical_status);
+    }
+
     public function hasTechnicalAnalysis(): bool
     {
         return !is_null($this->is_guarantee) && !is_null($this->technical_status);
@@ -155,52 +225,89 @@ class ServiceOrderItem extends Model
         return $this->is_guarantee === false && empty($this->repair_price);
     }
 
-    public function isGuaranteeApproved(): bool
+    public function canBeRepaired(): bool
     {
-        return $this->is_guarantee === true && in_array($this->technical_status, [
-            self::TECHNICAL_STATUS_GTC,
-            self::TECHNICAL_STATUS_GCG,
-            self::TECHNICAL_STATUS_RP
+        return $this->hasTechnicalAnalysis() &&
+            !$this->is_guarantee &&
+            !empty($this->repair_price) &&
+            $this->item_status === self::ITEM_STATUS_PENDING;
+    }
+
+    public function startAnalysis()
+    {
+        $this->update([
+            'item_status' => self::ITEM_STATUS_IN_ANALYSIS,
+            'analysis_started_at' => now(),
         ]);
     }
 
-    // Accessors para status de análise
-    public function getAnalysisStatusAttribute(): string
+    public function completeAnalysis($technicalStatus, $isGuarantee = null, $repairPrice = null, $observations = null)
     {
-        if (is_null($this->is_guarantee) || is_null($this->technical_status)) {
-            return 'pending';
+        $data = [
+            'technical_status' => $technicalStatus,
+            'technical_observations' => $observations,
+            // 'analysis_completed_at' => now(),
+            // 'analyzed_by' => auth()->id(),
+        ];
+
+        if (!is_null($isGuarantee)) {
+            $data['is_guarantee'] = $isGuarantee;
         }
 
-        if ($this->is_guarantee === false && empty($this->repair_price)) {
-            return 'incomplete';
+        if (!is_null($repairPrice) && !$isGuarantee) {
+            $data['repair_price'] = $repairPrice;
         }
 
-        return 'completed';
+        // Define o status inicial do item após análise
+        if (
+            $technicalStatus === self::TECH_STATUS_RP ||
+            $technicalStatus === self::TECH_STATUS_SC ||
+            $technicalStatus === self::TECH_STATUS_GTC ||
+            $technicalStatus === self::TECH_STATUS_GCG ||
+            $technicalStatus === self::TECH_STATUS_N
+        )
+
+            $this->update($data);
     }
 
-    public function getAnalysisStatusLabelAttribute(): string
+    public function startRepair()
     {
-        return [
-            'pending' => 'Pendente',
-            'incomplete' => 'Incompleta',
-            'completed' => 'Concluída',
-        ][$this->analysis_status] ?? 'Desconhecido';
+        $this->update([
+            'item_status' => self::ITEM_STATUS_IN_REPAIR,
+            'repair_started_at' => now(),
+        ]);
     }
 
-    public function getAnalysisStatusBadgeClassAttribute(): string
+    public function completeRepair()
     {
-        return [
-            'pending' => 'badge-warning',
-            'incomplete' => 'badge-danger',
-            'completed' => 'badge-success',
-        ][$this->analysis_status] ?? 'badge-secondary';
+        $this->update([
+            'item_status' => self::ITEM_STATUS_QUALITY_CHECK,
+            'repair_completed_at' => now(),
+            'repaired_by' => auth()->id(),
+        ]);
     }
 
-    // Escopos para análise
+    public function approveQuality()
+    {
+        $this->update([
+            'item_status' => self::ITEM_STATUS_COMPLETED,
+            'quality_completed_at' => now(),
+            'quality_checked_by' => auth()->id(),
+        ]);
+    }
+
+    public function rejectQuality($observations = null)
+    {
+        $this->update([
+            'item_status' => self::ITEM_STATUS_IN_REPAIR,
+            'technical_observations' => $observations,
+        ]);
+    }
+
+    // Escopos
     public function scopePendingAnalysis($query)
     {
-        return $query->whereNull('is_guarantee')
-            ->orWhereNull('technical_status');
+        return $query->whereNull('is_guarantee')->orWhereNull('technical_status');
     }
 
     public function scopeGuarantee($query)
@@ -216,13 +323,6 @@ class ServiceOrderItem extends Model
     public function scopeWithCompleteAnalysis($query)
     {
         return $query->whereNotNull('is_guarantee')
-            ->whereNotNull('technical_status')
-            ->where(function ($q) {
-                $q->where('is_guarantee', true)
-                    ->orWhere(function ($q2) {
-                        $q2->where('is_guarantee', false)
-                            ->whereNotNull('repair_price');
-                    });
-            });
+            ->whereNotNull('technical_status');
     }
 }
