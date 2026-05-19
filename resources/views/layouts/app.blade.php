@@ -246,10 +246,10 @@
 
         <!-- ===== FOOTER ===== -->
         <footer class="main-footer">
-            <strong>Copyright &copy; 2024 <a href="{{ route('dashboard') }}">LBF Portal</a>.</strong>
+            <strong>Copyright &copy; 2026 <a href="{{ route('dashboard') }}">LBF Portal</a>.</strong>
             Todos os direitos reservados.
             <div class="float-right d-none d-sm-inline-block">
-                <b>Versão</b> 1.0.0
+                <b>Versão</b> 3.0.0
             </div>
         </footer>
     </div>

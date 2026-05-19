@@ -44,6 +44,8 @@
             {{-- ===== COLUNA PRINCIPAL (ESQUERDA) ===== --}}
             <div class="col-lg-8">
 
+                
+
                 {{-- Lista de Itens --}}
                 <div class="card shadow-sm border-0 mb-4">
                     <div class="card-header bg-white border-0 pt-4 pb-0">
@@ -176,7 +178,7 @@
                             <div class="modal fade" id="itemModal{{ $item->id }}" tabindex="-1">
                                 <div class="modal-dialog modal-lg">
                                     <div class="modal-content">
-                                        <div class="modal-header bg-primary text-white">
+                                        <div class="modal-header bg-dark text-white rounded-3">
                                             <h5 class="modal-title">
                                                 <i class="fas fa-box mr-2"></i>
                                                 Detalhes do Item - {{ $item->identified_product_name }}
@@ -284,7 +286,7 @@
                                                 method="POST">
                                                 @csrf
                                                 <input type="hidden" name="item_id" value="{{ $item->id }}">
-                                                <div class="modal-header bg-primary text-white">
+                                                <div class="modal-header bg-dark text-white rounded-3">
                                                     <h5 class="modal-title">Análise Técnica -
                                                         {{ $item->identified_product_name }}</h5>
                                                     <button type="button" class="close text-white"
