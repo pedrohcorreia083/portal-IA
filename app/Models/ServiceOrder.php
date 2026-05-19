@@ -118,10 +118,8 @@ class ServiceOrder extends Model
     {
         return [
             self::STATUS_CREATED => 'Criada',
-            self::STATUS_UNDER_ANALYSIS => 'Em Análise',
-            self::STATUS_APPROVED => 'Aprovada',
-            self::STATUS_COMPLETED => 'Concluída',
-            self::STATUS_CANCELLED => 'Cancelada',
+            self::STATUS_APPROVED => 'Concluída',
+
         ][$this->status] ?? 'Desconhecido';
     }
 
@@ -129,10 +127,7 @@ class ServiceOrder extends Model
     {
         return [
             self::STATUS_CREATED => 'badge-warning',
-            self::STATUS_UNDER_ANALYSIS => 'badge-info',
-            self::STATUS_APPROVED => 'badge-primary',
-            self::STATUS_COMPLETED => 'badge-success',
-            self::STATUS_CANCELLED => 'badge-danger',
+            self::STATUS_APPROVED => 'badge-success',
         ][$this->status] ?? 'badge-secondary';
     }
 
