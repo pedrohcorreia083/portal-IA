@@ -73,11 +73,11 @@ class HomeController extends Controller
 
         // Origem das OS
         $origins = [
-            'showroom_sp' => ServiceOrder::where('origin', 'Showroom SP')->count(),
-            'limeira' => ServiceOrder::where('origin', 'Limeira')->count(),
-            'online' => ServiceOrder::where('origin', 'Online')->count(),
-            'ecommerce' => ServiceOrder::where('origin', 'Ecommerce')->count(),
-            'events' => ServiceOrder::where('origin', 'Eventos')->count(),
+            'showroom_sp' => ServiceOrder::where('origin', 'SHOWROOM SP')->count(),
+            'limeira' => ServiceOrder::where('origin', 'SHOWROOM LIMEIRA')->count(),
+            'online' => ServiceOrder::where('origin', 'SHOWROOM ON-LINE')->count(),
+            'ecommerce' => ServiceOrder::where('origin', 'E-COMMERCE')->count(),
+            'events' => ServiceOrder::where('origin', 'EVENTOS')->count(),
         ];
 
         // Top consultores

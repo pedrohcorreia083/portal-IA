@@ -64,7 +64,7 @@ class ServiceOrderController extends Controller
                 'client_phone' => 'nullable|string|max:20',
                 'consultant_name' => 'required|string|max:255',
                 'client_code' => 'required|string|max:50',
-                'origin' => 'required|in:SHOWROOM SP,SHOWROOM LIMEIRA,SHOWROOM ON-LINE,E-COMMERCE,EVENTOS',
+                'origin' => 'required|in:SHOWROOM SP,SHOWROOM LIMEIRA,SHOWROOM ON-LINE,E-COMMERCE,',
                 'order_date' => 'required|date',
                 'observations' => 'nullable|string',
             ]);

@@ -51,22 +51,6 @@
             <div class="small-box shadow-sm border-0 bg-white h-100 position-relative"
                 style="border-radius: 12px; overflow: hidden; transition: transform .2s;">
                 <div class="inner p-3">
-                    <h3 class="text-primary font-weight-bold mb-1">{{ $stats['os_in_progress'] }}</h3>
-                    <p class="text-muted text-sm font-weight-medium mb-0">Em Andamento</p>
-                </div>
-                <div class="icon position-absolute" style="right: 15px; top: 15px; opacity: 0.15; font-size: 2.5rem;">
-                    <i class="fas fa-tools text-primary"></i>
-                </div>
-                <a href="#" class="small-box-footer bg-light text-primary text-xs py-2 border-top">
-                    Mais info <i class="fas fa-arrow-circle-right ml-1"></i>
-                </a>
-            </div>
-        </div>
-
-        <div class="col-lg-3 col-6 mb-3">
-            <div class="small-box shadow-sm border-0 bg-white h-100 position-relative"
-                style="border-radius: 12px; overflow: hidden; transition: transform .2s;">
-                <div class="inner p-3">
                     <h3 class="text-success font-weight-bold mb-1">{{ $stats['os_completed_month'] }}</h3>
                     <p class="text-muted text-sm font-weight-medium mb-0">No Mês</p>
                 </div>
@@ -100,7 +84,7 @@
 
     <!-- Linha 2 — Gráficos Principais -->
     <div class="row">
-        <div class="col-md-8 mb-4">
+        <div class="col-md-6 mb-4">
             <div class="card card-custom border-0 shadow-sm" style="border-radius: 12px;">
                 <div class="card-header bg-white border-0 pt-3 pb-0">
                     <h3 class="card-title text-dark font-weight-bold text-md">
@@ -115,24 +99,7 @@
             </div>
         </div>
 
-        <div class="col-md-4 mb-4">
-            <div class="card card-custom border-0 shadow-sm" style="border-radius: 12px;">
-                <div class="card-header bg-white border-0 pt-3 pb-0">
-                    <h3 class="card-title text-dark font-weight-bold text-md">
-                        <i class="fas fa-chart-pie text-indigo mr-2"></i> Distribuição por Status
-                    </h3>
-                </div>
-                <div class="card-body d-flex align-items-center justify-content-center">
-                    <div style="height: 320px; width: 100%; position: relative;">
-                        <canvas id="statusDistributionChart"></canvas>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Linha 3 — Operacional & Ranking -->
-    <div class="row">
+        <!-- Linha 3 — Operacional & Ranking -->
         <div class="col-md-6 mb-4">
             <div class="card card-custom border-0 shadow-sm" style="border-radius: 12px;">
                 <div class="card-header bg-white border-0 pt-3 pb-0">
@@ -148,61 +115,6 @@
             </div>
         </div>
 
-        <div class="col-md-6 mb-4">
-            <div class="card card-custom border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
-                <div class="card-header bg-white border-0 pt-3 pb-2">
-                    <h3 class="card-title text-dark font-weight-bold text-md">
-                        <i class="fas fa-trophy text-warning mr-2"></i> Performance de Consultores (Top 10)
-                    </h3>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive" style="max-height: 280px;">
-                        <table class="table table-hover table-valign-middle mb-0">
-                            <thead class="bg-light text-muted text-xs uppercase font-weight-bold">
-                                <tr>
-                                    <th style="width: 60px" class="text-center">Pos.</th>
-                                    <th>Consultor</th>
-                                    <th class="text-center" style="width: 100px">Total OS</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($topConsultants as $index => $consultant)
-                                    <tr>
-                                        <td class="text-center font-weight-bold">
-                                            @if ($index == 0)
-                                                <span class="badge badge-warning p-2 text-white shadow-sm"
-                                                    style="background-color: #ffd700 !important; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;">1</span>
-                                            @elseif($index == 1)
-                                                <span class="badge badge-secondary p-2 shadow-sm"
-                                                    style="background-color: #c0c0c0 !important; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;">2</span>
-                                            @elseif($index == 2)
-                                                <span class="badge badge-danger p-2 shadow-sm"
-                                                    style="background-color: #cd7f32 !important; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;">3</span>
-                                            @else
-                                                <span class="text-muted text-sm">{{ $index + 1 }}º</span>
-                                            @endif
-                                        </td>
-                                        <td class="font-weight-medium text-dark text-sm">
-                                            {{ $consultant->consultant_name }}</td>
-                                        <td class="text-center">
-                                            <span class="badge badge-light border font-weight-bold px-3 py-1.5"
-                                                style="border-radius: 20px;">{{ $consultant->total_os }}</span>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="3" class="text-center text-muted py-4">
-                                            <i class="fas fa-inbox fa-2x mb-2 text-gray-200 d-block"></i>
-                                            Nenhum consultor encontrado
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- Linha 4 — Financeiro/Técnico -->
@@ -353,7 +265,7 @@
                 new Chart(ctxOrigin, {
                     type: 'bar',
                     data: {
-                        labels: ['Showroom SP', 'Limeira', 'Online', 'Ecommerce', 'Eventos'],
+                        labels: ['Showroom SP', 'Showroom Limeira', 'Online', 'Ecommerce', 'Eventos'],
                         datasets: [{
                             data: [
                                 {{ $origins['showroom_sp'] ?? 0 }},
