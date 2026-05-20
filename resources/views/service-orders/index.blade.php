@@ -159,10 +159,11 @@
                             <th width="70">#</th>
                             <th>Nº OS</th>
                             <th>Cliente</th>
-                            <th>Consultor</th>
+                            {{-- <th>Consultor</th> --}}
                             <th>Origem</th>
                             <th>Data</th>
                             <th>Itens</th>
+                            <th>Status</th>
                             <th class="text-center" width="130">
                                 Ações
                             </th>
@@ -189,9 +190,9 @@
                                     {{ $serviceOrder->client_name }}
                                 </td>
 
-                                <td>
+                                {{-- <td>
                                     {{ $serviceOrder->consultant_name }}
-                                </td>
+                                </td> --}}
 
                                 <td>
                                     <span class="badge badge-info px-3 py-2">
@@ -206,6 +207,12 @@
                                 <td>
                                     <span class="badge badge-light border px-3 py-2">
                                         {{ $serviceOrder->total_items }}
+                                    </span>
+                                </td>
+
+                                <td>
+                                    <span class="badge {{ $serviceOrder->status_badge_class }} px-3 py-2">
+                                        {{ $serviceOrder->status_label }}
                                     </span>
                                 </td>
 
