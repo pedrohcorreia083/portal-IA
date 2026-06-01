@@ -19,8 +19,10 @@
                     <i class="fas fa-wrench text-white fa-lg"></i>
                 </div>
                 <div>
-                    <h3 class="mb-0 font-weight-bold">OS #{{ $serviceOrder->order_number }}</h3>
+                    <h3 class="mb-0 font-weight-bold">#{{ $serviceOrder->order_number }}</h3>
                     <div class="text-muted mt-1">
+                        <i class="fas fa-building mr-1"></i> {{ $serviceOrder->origin }}
+                        <span class="mx-2">•</span>
                         <i class="fas fa-user mr-1"></i> {{ $serviceOrder->client_name }}
                         <span class="mx-2">•</span>
                         <i class="fas fa-calendar-alt mr-1"></i> {{ $serviceOrder->order_date->format('d/m/Y') }}
@@ -44,7 +46,7 @@
             {{-- ===== COLUNA PRINCIPAL (ESQUERDA) ===== --}}
             <div class="col-lg-8">
 
-                
+
 
                 {{-- Lista de Itens --}}
                 <div class="card shadow-sm border-0 mb-4">
