@@ -10,7 +10,9 @@
     <!-- Google Fonts - Montserrat -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&display=swap"
+        rel="stylesheet">
 
     <!-- CSS Global -->
     @vite(['resources/css/app.css'])
@@ -78,8 +80,7 @@
                         <!-- Menu Footer-->
                         <li class="user-footer">
                             <a href="#" class="btn btn-default btn-flat">Perfil</a>
-                            <a href="{{ route('logout') }}"
-                                class="btn btn-default btn-flat float-right"
+                            <a href="{{ route('logout') }}" class="btn btn-default btn-flat float-right"
                                 onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
                                 Sair
                             </a>
@@ -96,10 +97,8 @@
         <aside class="main-sidebar sidebar-dark-primary elevation-4">
             <!-- Brand Logo -->
             <a href="{{ route('dashboard') }}" class="brand-link text-center">
-                <img src="{{ asset('images/logo/logo.png') }}"
-                    alt="LBF Portal"
-                    class="brand-image img-circle elevation-3"
-                    style="opacity: .8; max-height: 33px;">
+                <img src="{{ asset('images/logo/logo.png') }}" alt="LBF Portal"
+                    class="brand-image img-circle elevation-3" style="opacity: .8; max-height: 33px;">
                 <span class="brand-text font-weight-light"><b>LBF</b> PORTAL</span>
             </a>
 
@@ -114,31 +113,52 @@
 
                 <!-- Sidebar Menu -->
                 <nav class="mt-2">
-                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                    <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu"
+                        data-accordion="false">
                         <!-- Dashboard -->
                         <li class="nav-item">
-                            <a href="{{ route('dashboard') }}" class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                            <a href="{{ route('dashboard') }}"
+                                class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-tachometer-alt"></i>
                                 <p>Dashboard</p>
                             </a>
                         </li>
 
                         <!-- Usuários -->
-                        @if(auth()->user()->isAdmin())
-
-                        <li class="nav-item">
-                            <a href="{{ route('users.index') }}" class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
-                                <i class="nav-icon fas fa-users"></i>
-                                <p>Gestão de Usuários</p>
-                            </a>
-                        </li>
+                        @if (auth()->user()->isAdmin())
+                            <li class="nav-item">
+                                <a href="{{ route('users.index') }}"
+                                    class="nav-link {{ request()->routeIs('users.*') ? 'active' : '' }}">
+                                    <i class="nav-icon fas fa-users"></i>
+                                    <p>Gestão de Usuários</p>
+                                </a>
+                            </li>
                         @endif
 
                         <!-- Ordens de Serviço -->
                         <li class="nav-item">
-                            <a href="{{ route('service-orders.index') }}" class="nav-link {{ request()->routeIs('service-orders.*') ? 'active' : '' }}">
+                            <a href="{{ route('service-orders.index') }}"
+                                class="nav-link {{ request()->routeIs('service-orders.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-file-alt"></i>
                                 <p>Ordens de Serviço</p>
+                            </a>
+                        </li>
+
+                        <!-- Área Técnica -->
+                        <li class="nav-item">
+                            <a href="{{ route('service-orders.index') }}"
+                                class="nav-link {{ request()->routeIs('service-orders.*') ? 'activee' : '' }}">
+                                <i class="nav-icon fas fa-wrench"></i>
+                                <p>Área Técnica</p>
+                            </a>
+                        </li>
+
+                        <!-- Área Técnica -->
+                        <li class="nav-item">
+                            <a href="{{ route('service-orders.index') }}"
+                                class="nav-link {{ request()->routeIs('service-orders.*') ? 'activee' : '' }}">
+                                <i class="nav-icon fas fa-file"></i>
+                                <p>Arquivos</p>
                             </a>
                         </li>
 
@@ -221,22 +241,22 @@
             <main class="content">
                 <div class="container-fluid">
                     <!-- Alertas -->
-                    @if(session('success'))
-                    <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        {{ session('success') }}
-                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
+                    @if (session('success'))
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            {{ session('success') }}
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
                     @endif
 
-                    @if(session('error'))
-                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        {{ session('error') }}
-                        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
-                            <span aria-hidden="true">&times;</span>
-                        </button>
-                    </div>
+                    @if (session('error'))
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            {{ session('error') }}
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                                <span aria-hidden="true">&times;</span>
+                            </button>
+                        </div>
                     @endif
 
                     @yield('content')
