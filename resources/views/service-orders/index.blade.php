@@ -3,25 +3,9 @@
 @section('title', 'Ordens de Serviço')
 
 @section('content-header')
-    <div class="d-flex justify-content-between align-items-center flex-wrap">
-        <div>
-            <h1 class="m-0">Ordens de Serviço</h1>
-            <small class="text-muted">
-                Gerencie todas as ordens de serviço
-            </small>
-        </div>
-
-        <div class="d-flex gap-2">
-            <a href="{{ route('service-orders.export', request()->all()) }}" class="btn btn-success shadow-sm mr-2">
-                <i class="fas fa-file-excel mr-1"></i>
-                Exportar Excel
-            </a>
-
-            <a href="{{ route('service-orders.create') }}" class="btn btn-primary shadow-sm">
-                <i class="fas fa-plus mr-1"></i>
-                Nova OS
-            </a>
-        </div>
+    <div>
+        <h1 class="m-0">Ordens de Serviço</h1>
+        <small class="text-muted">Gerencie todas as ordens de serviço</small>
     </div>
 @endsection
 
@@ -32,6 +16,37 @@
 @endsection
 
 @section('content')
+
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
+        <!-- Ações e filtros de data -->
+        <div class="d-flex flex-wrap align-items-center gap-2 w-100 w-md-auto">
+            <!-- Botão Exportar -->
+            <a href="{{ route('service-orders.export', request()->all()) }}" class="btn btn-success shadow-sm">
+                <i class="fas fa-file-excel mr-1"></i>
+                Exportar Excel
+            </a>
+
+            <!-- Botão Nova OS -->
+            <a href="{{ route('service-orders.create') }}" class="btn btn-primary shadow-sm">
+                <i class="fas fa-plus mr-1"></i>
+                Nova OS
+            </a>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2 flex-wrap mb-3">
+        <div>
+            <label for="date_from" class="form-label mb-0 small">Data inicial</label>
+            <input type="date" name="date_from" id="date_from" class="form-control form-control-sm"
+                value="{{ request('date_from') }}">
+        </div>
+
+        <div>
+            <label for="date_to" class="form-label mb-0 small">Data final</label>
+            <input type="date" name="date_to" id="date_to" class="form-control form-control-sm"
+                value="{{ request('date_to') }}">
+        </div>
+    </div>
 
     {{-- FILTROS --}}
     <div class="card shadow-sm border-0 mb-4">

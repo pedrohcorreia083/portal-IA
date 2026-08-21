@@ -22,7 +22,7 @@ class ServiceOrdersExport implements FromCollection, WithHeadings
         $query = ServiceOrder::query()
             ->with('products');
 
-        // Filtros
+        // Filtro por número da OS
         if ($this->request->order_number) {
             $query->where(
                 'order_number',
@@ -31,6 +31,7 @@ class ServiceOrdersExport implements FromCollection, WithHeadings
             );
         }
 
+        // Filtro por cliente
         if ($this->request->client_name) {
             $query->where(
                 'client_name',
@@ -39,6 +40,7 @@ class ServiceOrdersExport implements FromCollection, WithHeadings
             );
         }
 
+        // Filtro por consultor
         if ($this->request->consultant_name) {
             $query->where(
                 'consultant_name',
@@ -47,10 +49,29 @@ class ServiceOrdersExport implements FromCollection, WithHeadings
             );
         }
 
+        // Filtro por filial
         if ($this->request->origin) {
             $query->where(
                 'origin',
                 $this->request->origin
+            );
+        }
+
+        // Filtro por data inicial
+        if ($this->request->date_from) {
+            $query->whereDate(
+                'order_date',
+                '>=',
+                $this->request->date_from
+            );
+        }
+
+        // Filtro por data final
+        if ($this->request->date_to) {
+            $query->whereDate(
+                'order_date',
+                '<=',
+                $this->request->date_to
             );
         }
 
