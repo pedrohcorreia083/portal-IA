@@ -33,7 +33,7 @@
             </a>
         </div>
     </div>
-
+{{-- 
     <div class="d-flex gap-2 flex-wrap mb-3">
         <div>
             <label for="date_from" class="form-label mb-0 small">Data inicial</label>
@@ -46,7 +46,7 @@
             <input type="date" name="date_to" id="date_to" class="form-control form-control-sm"
                 value="{{ request('date_to') }}">
         </div>
-    </div>
+    </div> --}}
 
     {{-- FILTROS --}}
     <div class="card shadow-sm border-0 mb-4">
