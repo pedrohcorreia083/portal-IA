@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\ServiceOrderProduct;
 
 class ServiceOrderItem extends Model
 {
@@ -335,5 +336,13 @@ class ServiceOrderItem extends Model
     {
         return $query->whereNotNull('is_guarantee')
             ->whereNotNull('technical_status');
+    }
+
+    public function products()
+    {
+        return $this->hasMany(
+            ServiceOrderProduct::class,
+            'service_order_id'
+        );
     }
 }

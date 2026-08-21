@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use App\Models\ServiceOrderProduct;
+
 
 class ServiceOrder extends Model
 {
@@ -159,5 +161,13 @@ class ServiceOrder extends Model
         return $this->user_type === 'technical' ||
             $this->hasRole('technical') ||
             $this->hasRole('tecnico');
+    }
+
+    public function products()
+    {
+        return $this->hasMany(
+            ServiceOrderProduct::class,
+            'service_order_id'
+        );
     }
 }
