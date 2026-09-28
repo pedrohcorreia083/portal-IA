@@ -145,18 +145,18 @@
                         </li>
 
                         <!-- Área Técnica -->
-                        <li class="nav-item">
+                        {{-- <li class="nav-item">
                             <a href="{{ route('service-orders.index') }}"
                                 class="nav-link {{ request()->routeIs('service-orders.*') ? 'activee' : '' }}">
                                 <i class="nav-icon fas fa-wrench"></i>
                                 <p>Área Técnica</p>
                             </a>
-                        </li>
+                        </li> --}}
 
-                        <!-- Área Técnica -->
+                        <!-- uploads de imagens -->
                         <li class="nav-item">
-                            <a href="{{ route('service-orders.index') }}"
-                                class="nav-link {{ request()->routeIs('service-orders.*') ? 'activee' : '' }}">
+                            <a href="{{ route('uploads.index') }}"
+                                class="nav-link {{ request()->routeIs('uploads.*') ? 'active' : '' }}">
                                 <i class="nav-icon fas fa-file"></i>
                                 <p>Arquivos</p>
                             </a>

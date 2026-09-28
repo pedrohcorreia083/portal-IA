@@ -6,6 +6,7 @@ use App\Http\Controllers\HomeController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ServiceOrderController;
 use App\Http\Controllers\ServiceOrderItemController;
+use App\Http\Controllers\UploadController;
 
 // Redirecionar rota raiz para login
 Route::get('/', function () {
@@ -22,6 +23,14 @@ Route::middleware(['auth'])->group(function () {
     // ========== GESTÃO DE USUÁRIOS ==========
     Route::get('/users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::resource('users', UserController::class);
+
+    // Rota para exibir a página de upload
+    Route::get('/uploads', [UploadController::class, 'index'])->name('uploads.index');
+    Route::get('/uploads/imagem/{pasta}/{nome}', [UploadController::class, 'imagem'])
+        ->name('uploads.imagem');
+
+    // Rota para processar o upload (POST)
+    Route::post('/uploads', [UploadController::class, 'store'])->name('uploads.store');
 
     // ========== ORDENS DE SERVIÇO ==========
     Route::prefix('service-orders')->group(function () {
