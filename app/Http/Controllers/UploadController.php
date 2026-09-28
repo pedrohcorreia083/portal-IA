@@ -8,9 +8,14 @@ use Illuminate\Validation\Rule;
 
 class UploadController extends Controller
 {
+    // private function pastaBase(): string
+    // {
+    //     return 'C:\\Users\\pedro\\Documents\\Projetos\\lbf_project_IA\\product-image';
+    // }
+
     private function pastaBase(): string
     {
-        return 'C:\\Users\\pedro\\Documents\\Projetos\\lbf_project_IA\\product-image';
+        return '/home/ftpuser/ftp/upload';
     }
 
     private function pastasDisponiveis(): array
