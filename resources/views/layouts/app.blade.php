@@ -144,6 +144,14 @@
                             </a>
                         </li>
 
+                        <li class="nav-item">
+                            <a href="{{ route('technical-sheets.index') }}"
+                                class="nav-link {{ request()->routeIs('technical-sheets.*') ? 'active' : '' }}">
+                                <i class="nav-icon fas fa-clipboard-list"></i>
+                                <p>Ficha técnica</p>
+                            </a>
+                        </li>
+
                         <!-- Área Técnica -->
                         {{-- <li class="nav-item">
                             <a href="{{ route('service-orders.index') }}"

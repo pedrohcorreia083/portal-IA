@@ -57,50 +57,17 @@ Route::middleware(['auth'])->group(function () {
         // Atualização rápida de status da OS
         Route::patch('/{serviceOrder}/update-status', [ServiceOrderController::class, 'updateStatus'])->name('service-orders.update-status');
 
-        // ========== ANÁLISE TÉCNICA DA OS ==========
-        Route::get('/{serviceOrder}/analysis', [ServiceOrderController::class, 'analysis'])
-            ->name('service-orders.analysis')
-            ->middleware('can:technical-analysis,serviceOrder');
+        // A análise técnica foi concentrada nas fichas individuais.
+        Route::get('/{serviceOrder}/analysis', function (\App\Models\ServiceOrder $serviceOrder) {
+            return redirect()->route('technical-sheets.index', ['order_number' => $serviceOrder->order_number]);
+        })->name('service-orders.analysis');
 
-        Route::post('/{serviceOrder}/analysis', [ServiceOrderController::class, 'saveAnalysis'])
-            ->name('service-orders.save-analysis')
-            ->middleware('can:technical-analysis,serviceOrder');
-
-        // ========== ITEMS (Controller específico) ==========
-        Route::prefix('{serviceOrder}/items')->controller(ServiceOrderController::class)->group(function () {
-
-            // Análise individual do item
-            Route::post('/{item}/analyze', 'analyze')
-                ->name('service-orders.items.analyze')
-                ->middleware('can:technical-analysis,serviceOrder');
-
-            // Status do item
-            Route::patch('/{item}/status', 'updateStatus')
-                ->name('service-orders.items.status')
-                ->middleware('can:technical-analysis,serviceOrder');
-
-            // Fluxo do item
-            Route::post('/{item}/start-repair', 'startRepair')
-                ->name('service-orders.items.start-repair');
-
-            Route::post('/{item}/complete-repair', 'completeRepair')
-                ->name('service-orders.items.complete-repair');
-
-            Route::post('/{item}/approve-quality', 'approveQuality')
-                ->name('service-orders.items.approve-quality');
-
-            Route::post('/{item}/reject-quality', 'rejectQuality')
-                ->name('service-orders.items.reject-quality');
-
-            // CRUD do item
-            Route::get('/{item}/edit', 'edit')
-                ->name('service-orders.items.edit');
-
-            Route::put('/{item}', 'update')
-                ->name('service-orders.items.update');
-
-            Route::delete('/{item}', 'destroy')
-                ->name('service-orders.items.destroy');
-        });
+        Route::post('/{serviceOrder}/analysis', function () {
+            abort(410, 'A análise deve ser realizada na Ficha técnica.');
+        })->name('service-orders.save-analysis');
     });
+
+    Route::get('/technical-sheets', [\App\Http\Controllers\TechnicalSheetController::class, 'index'])->name('technical-sheets.index');
+    Route::get('/technical-sheets/{item}', [\App\Http\Controllers\TechnicalSheetController::class, 'show'])->name('technical-sheets.show');
+    Route::patch('/technical-sheets/{item}', [\App\Http\Controllers\TechnicalSheetController::class, 'update'])->name('technical-sheets.update');
 });

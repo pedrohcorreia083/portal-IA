@@ -107,90 +107,6 @@ class ServiceOrderController extends Controller
         }
     }
 
-    public function analysis(ServiceOrder $serviceOrder)
-    {
-        if (!auth()->user()->isTechnical() && !auth()->user()->isAdmin()) {
-            return redirect()->route('service-orders.show', $serviceOrder)
-                ->with('error', 'Acesso permitido apenas para o setor técnico.');
-        }
-
-        $serviceOrder->load('items');
-
-        $pendingItems = $serviceOrder->items->filter(function ($item) {
-            return $item->needsAnalysis();
-        });
-
-        $analyzedItems = $serviceOrder->items->filter(function ($item) {
-            return $item->hasTechnicalAnalysis();
-        });
-
-        return view('service-orders.analysis', compact('serviceOrder', 'pendingItems', 'analyzedItems'));
-    }
-
-    public function saveAnalysis(Request $request, ServiceOrder $serviceOrder)
-    {
-
-        try {
-            $validated = $request->validate([
-                'item_id' => 'required|exists:service_order_items,id',
-                'is_guarantee' => 'required|boolean',
-                'repair_price' => 'nullable|required_if:is_guarantee,false|numeric|min:0',
-                'technical_status' => 'required|in:RP,SC,GTC,GCG,N',
-                'technical_observations' => 'nullable|string',
-            ]);
-
-            $item = ServiceOrderItem::findOrFail($validated['item_id']);
-
-            if ($item->service_order_id !== $serviceOrder->id) {
-                return response()->json(['error' => 'Item não pertence a esta OS'], 400);
-            }
-
-            if ($validated['is_guarantee']) {
-                $validated['repair_price'] = null;
-            }
-
-            $item->completeAnalysis(
-                $validated['technical_status'],
-                $validated['is_guarantee'],
-                $validated['repair_price'],
-                $validated['technical_observations']
-            );
-
-            $pendingCount = $serviceOrder->items->filter(function ($i) {
-                return $i->needsAnalysis();
-            })->count();
-
-            if ($pendingCount === 0) {
-                $serviceOrder->update([
-                    'status' => ServiceOrder::STATUS_APPROVED,
-                    'technical_analyst_id' => auth()->id(),
-                    'analysis_date' => now(),
-                ]);
-            }
-
-            if ($request->ajax()) {
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Análise salva com sucesso!',
-                    'item' => $item,
-                    'pending_count' => $pendingCount
-                ]);
-            }
-
-            return redirect()
-                ->route('service-orders.show', $serviceOrder)
-                ->with('success', 'Análise do item salva com sucesso!');
-        } catch (\Throwable $e) {
-            if ($request->ajax()) {
-                return response()->json(['error' => $e->getMessage()], 500);
-            }
-
-            return back()
-                ->withInput()
-                ->withErrors(['error' => 'Erro ao salvar análise: ' . $e->getMessage()]);
-        }
-    }
-
     public function identifyProduct(Request $request)
     {
         try {
@@ -277,7 +193,7 @@ class ServiceOrderController extends Controller
 
     public function show(ServiceOrder $serviceOrder)
     {
-        $serviceOrder->load('items.product', 'technicalAnalyst');
+        $serviceOrder->load('items.product', 'items.technicalSheet', 'technicalAnalyst');
         return view('service-orders.show', compact('serviceOrder'));
     }
 
@@ -299,6 +215,11 @@ class ServiceOrderController extends Controller
 
     public function update(Request $request, ServiceOrder $serviceOrder)
     {
+        abort_unless(auth()->user()->isAdmin(), 403);
+        $submittedIds = collect($request->input('items', []))->pluck('id')->filter()->all();
+        if ($serviceOrder->items()->whereHas('technicalSheet')->whereNotIn('id', $submittedIds)->exists()) {
+            return back()->withInput()->with('error', 'Peças com ficha técnica não podem ser removidas da OS.');
+        }
         try {
             $serviceOrder->update([
                 'client_name' => $request->client_name,
@@ -387,6 +308,16 @@ class ServiceOrderController extends Controller
                 $serviceOrder->items()->whereIn('id', $itemsToDelete)->delete();
             }
 
+            // A newly added piece reopens an OS that already has technical work.
+            if ($serviceOrder->status !== 'cancelled' && $serviceOrder->items()->whereHas('technicalSheet')->exists()
+                && $serviceOrder->items()->where(function ($query) {
+                    $query->whereDoesntHave('technicalSheet')->orWhereHas('technicalSheet', function ($sheet) {
+                        $sheet->whereNotIn('status', \App\Models\TechnicalSheet::CLOSED_STATUSES);
+                    });
+                })->exists()) {
+                $serviceOrder->update(['status' => ServiceOrder::STATUS_UNDER_ANALYSIS]);
+            }
+
             return redirect()->route('service-orders.show', $serviceOrder)
                 ->with('success', 'Ordem de Serviço atualizada com sucesso!');
         } catch (\Exception $e) {
@@ -398,6 +329,10 @@ class ServiceOrderController extends Controller
 
     public function destroy(ServiceOrder $serviceOrder)
     {
+        abort_unless(auth()->user()->isAdmin(), 403);
+        if ($serviceOrder->items()->whereHas('technicalSheet')->exists()) {
+            return back()->with('error', 'Esta OS possui histórico técnico e não pode ser excluída.');
+        }
         $serviceOrder->delete();
 
         return redirect()->route('service-orders.index')
@@ -412,6 +347,9 @@ class ServiceOrderController extends Controller
             'status' => 'required|in:pending,in_progress,completed,cancelled'
         ]);
 
+        if ($serviceOrder->items()->whereHas('technicalSheet')->exists()) {
+            return back()->with('error', 'O andamento desta OS é controlado pelas fichas técnicas.');
+        }
         $serviceOrder->update(['status' => $request->status]);
 
         return redirect()->route('service-orders.show', $serviceOrder)
@@ -456,42 +394,4 @@ class ServiceOrderController extends Controller
         return Excel::download(new ServiceOrdersExport($request), 'ordens_servico.xlsx');
     }
 
-    public function updateItemStatus(Request $request, ServiceOrder $serviceOrder, ServiceOrderItem $item)
-    {
-        if (!auth()->user()->isTechnical() && !auth()->user()->isAdmin()) {
-            abort(403);
-        }
-
-        $request->validate([
-            'action' => 'required|in:start_repair,complete_repair,approve_quality,reject_quality',
-            'observations' => 'nullable|string'
-        ]);
-
-        try {
-            switch ($request->action) {
-                case 'start_repair':
-                    $item->startRepair();
-                    $message = 'Reparo iniciado!';
-                    break;
-                case 'complete_repair':
-                    $item->completeRepair();
-                    $message = 'Reparo concluído, enviado para controle de qualidade!';
-                    break;
-                case 'approve_quality':
-                    $item->approveQuality();
-                    $message = 'Item aprovado no controle de qualidade!';
-                    break;
-                case 'reject_quality':
-                    $item->rejectQuality($request->observations);
-                    $message = 'Item reprovado, retornando para reparo!';
-                    break;
-            }
-
-            return redirect()
-                ->route('service-orders.show', $serviceOrder)
-                ->with('success', $message);
-        } catch (\Throwable $e) {
-            return back()->with('error', 'Erro ao atualizar status: ' . $e->getMessage());
-        }
-    }
 }

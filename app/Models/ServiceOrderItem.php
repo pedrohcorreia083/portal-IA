@@ -118,6 +118,11 @@ class ServiceOrderItem extends Model
         'CL' => 'Colorido',
     ];
 
+    public function technicalSheet()
+    {
+        return $this->hasOne(TechnicalSheet::class);
+    }
+
     // Relacionamentos
     public function serviceOrder()
     {
