@@ -101,25 +101,25 @@
                                         class="text-muted">Obrigatório para serviços sem garantia.</small></div>
                                 <div class="form-group col-md-6"><label for="payment_method">Forma de pagamento</label><input name="payment_method" id="payment_method" class="form-control"
                                         maxlength="100" value="{{ old('payment_method', $sheet->payment_method) }}"></div>
-                                <div class="form-group col-md-3"><label for="changes_coating">Altera acabamento:</label><select name="changes_coating" id="changes_coating"
+                                <div class="form-group col-md-6"><label for="changes_coating">Altera acabamento:</label><select name="changes_coating" id="changes_coating"
                                         class="form-control">
                                         <option value="0" @selected(!old('changes_coating', $sheet->changes_coating))>Não
                                         </option>
                                         <option value="1" @selected(old('changes_coating', $sheet->changes_coating))>Sim
                                         </option>
                                     </select></div>
-                                <div class="form-group col-md-3"><label for="new_finish">Novo acabamento:</label><select
+                                <div class="form-group col-md-6"><label for="new_finish">Novo acabamento:</label><select
                                         name="new_finish" id="new_finish" class="form-control">
                                         <option value="">Não se aplica</option>
                                         @foreach (\App\Models\TechnicalSheet::FINISH_TYPES as $value => $label)
                                         <option value="{{ $value }}" @selected(old('new_finish', $sheet->new_finish) === $value)>{{ $label }}</option>@endforeach
                                     </select></div>
-                                <div class="form-group col-md-3"><label for="changes_color">Altera cor:</label><select name="changes_color" id="changes_color"
+                                <div class="form-group col-md-6"><label for="changes_color">Altera cor:</label><select name="changes_color" id="changes_color"
                                         class="form-control">
                                         <option value="0" @selected(!old('changes_color', $sheet->changes_color))>Não</option>
                                         <option value="1" @selected(old('changes_color', $sheet->changes_color))>Sim</option>
                                     </select></div>
-                                <div class="form-group col-md-3"><label for="new_color">Nova cor:</label><select
+                                <div class="form-group col-md-6"><label for="new_color">Nova cor:</label><select
                                         name="new_color" id="new_color" class="form-control">
                                         <option value="">Não se aplica</option>
                                         @foreach (\App\Models\TechnicalSheet::COLORS as $value => $label)
