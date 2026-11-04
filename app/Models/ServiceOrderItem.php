@@ -20,6 +20,8 @@ class ServiceOrderItem extends Model
         'services',
         'coating',
         'observations',
+        'purchase_date',
+        'piece_value',
         'is_guarantee',
         'repair_price',
         'technical_status',
@@ -39,6 +41,8 @@ class ServiceOrderItem extends Model
 
     protected $casts = [
         'services' => 'array',
+        'purchase_date' => 'date',
+        'piece_value' => 'decimal:2',
         'is_guarantee' => 'boolean',
         'analysis_started_at' => 'datetime',
         // 'analysis_completed_at' => 'datetime',

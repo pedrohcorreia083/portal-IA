@@ -41,8 +41,19 @@ class TechnicalSheet extends Model
         'bath' => 'Banho',
         'weld_bath' => 'Solda e banho',
         'assembly' => 'Montagem',
+        'gluing' => 'Colagem',
+        'replace_stone' => 'Repor pedra',
+        'return_without_repair' => 'Devolução sem reparo',
+        'other' => 'Outros',
         'exchange' => 'Troca com estoque',
         'credit' => 'Gerar crédito',
+    ];
+
+    public const ALTERATION_TYPES = [
+        'finish' => 'Acabamento',
+        'color' => 'Cor',
+        'component' => 'Componente',
+        'tying' => 'Amarração',
     ];
 
     public const CLOSED_STATUSES = ['completed', 'sent_to_store', 'delivered', 'cancelled'];

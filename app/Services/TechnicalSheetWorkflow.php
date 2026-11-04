@@ -31,14 +31,14 @@ class TechnicalSheetWorkflow
                 $this->require($data['is_guarantee'] || $data['treatment'] !== 'credit', 'Crédito está disponível apenas para garantia.');
                 $sheet->fill(collect($data)->only([
                     'is_guarantee', 'treatment', 'diagnosis', 'repair_price',
-                    'changes_coating', 'target_coating', 'payment_method', 'delivery_destination',
+                    'changes_coating', 'alteration_type', 'payment_method', 'delivery_destination',
                 ])->all());
                 if ($sheet->is_guarantee) {
                     $sheet->repair_price = null;
                     $sheet->payment_method = null;
                 }
                 if (!$sheet->changes_coating) {
-                    $sheet->target_coating = null;
+                    $sheet->alteration_type = null;
                 }
                 $sheet->status = $sheet->is_guarantee
                     ? ($sheet->treatment === 'credit' ? 'credit_pending' : 'ready_for_service')
@@ -74,7 +74,7 @@ class TechnicalSheetWorkflow
                 'notes' => $data['notes'] ?? null,
                 'details' => $action === 'triage' ? $sheet->only([
                     'diagnosis', 'treatment', 'is_guarantee', 'repair_price',
-                    'changes_coating', 'target_coating', 'payment_method', 'delivery_destination',
+                    'changes_coating', 'alteration_type', 'payment_method', 'delivery_destination',
                 ]) : null,
             ]);
 

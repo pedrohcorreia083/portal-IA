@@ -212,6 +212,25 @@ Editar Ordem de Serviço
                                 <textarea class="form-control" name="items[{{ $index }}][observations]" rows="2">{{ $item->observations }}</textarea>
                             </div>
 
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="purchase-date-{{ $index }}">Data da compra</label>
+                                        <input type="date" class="form-control" name="items[{{ $index }}][purchase_date]"
+                                            id="purchase-date-{{ $index }}"
+                                            value="{{ old("items.$index.purchase_date", $item->purchase_date?->format('Y-m-d')) }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="piece-value-{{ $index }}">Valor da peça</label>
+                                        <input type="number" class="form-control" name="items[{{ $index }}][piece_value]"
+                                            id="piece-value-{{ $index }}" min="0" max="99999999.99" step="0.01"
+                                            value="{{ old("items.$index.piece_value", $item->piece_value) }}" placeholder="R$ 0,00">
+                                    </div>
+                                </div>
+                            </div>
+
                             <input type="hidden" name="items[{{ $index }}][ai_identified_code]" id="ai-code-{{ $index }}" value="{{ $item->ai_identified_code }}">
                             <hr class="my-4">
                         </div>
@@ -526,6 +545,21 @@ Editar Ordem de Serviço
                 <div class="form-group">
                     <label>Observações do Item</label>
                     <textarea class="form-control" name="items[${index}][observations]" rows="2"></textarea>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="purchase-date-${index}">Data da compra</label>
+                            <input type="date" class="form-control" name="items[${index}][purchase_date]" id="purchase-date-${index}">
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="piece-value-${index}">Valor da peça</label>
+                            <input type="number" class="form-control" name="items[${index}][piece_value]" id="piece-value-${index}" min="0" max="99999999.99" step="0.01" placeholder="R$ 0,00">
+                        </div>
+                    </div>
                 </div>
 
                 <input type="hidden" name="items[${index}][ai_identified_code]" id="ai-code-${index}">

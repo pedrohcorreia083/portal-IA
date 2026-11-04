@@ -143,9 +143,13 @@ class TechnicalSheetTest extends TestCase
         $item = $this->item();
         $this->actingAs($this->admin());
         $this->triage($item, ['is_guarantee' => '0'])->assertSessionHasErrors('repair_price');
-        $this->triage($item, ['changes_coating' => '1'])->assertSessionHasErrors('target_coating');
+        $this->triage($item, ['changes_coating' => '1'])->assertSessionHasErrors('alteration_type');
         $this->triage($item, ['is_guarantee' => '0', 'repair_price' => 12, 'treatment' => 'credit'])->assertSessionHasErrors('action');
         $this->assertDatabaseCount('technical_sheets', 0);
+
+        $itemWithAlteration = $this->item();
+        $this->triage($itemWithAlteration, ['changes_coating' => '1', 'alteration_type' => 'finish'])->assertSessionHasNoErrors();
+        $this->assertSame('finish', $itemWithAlteration->technicalSheet()->first()->alteration_type);
     }
 
     public function test_decline_cancellation_and_legacy_routes_cannot_bypass_workflow(): void

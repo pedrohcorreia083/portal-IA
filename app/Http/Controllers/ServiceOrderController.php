@@ -67,6 +67,9 @@ class ServiceOrderController extends Controller
                 'origin' => 'required|in:SHOWROOM SP,SHOWROOM LIMEIRA,SHOWROOM ON-LINE,E-COMMERCE,EVENTOS',
                 'order_date' => 'required|date',
                 'observations' => 'nullable|string',
+                'items' => 'nullable|array',
+                'items.*.purchase_date' => 'nullable|date',
+                'items.*.piece_value' => 'nullable|numeric|min:0|max:99999999.99',
             ]);
 
             $serviceOrderData = collect($validated)->except('items')->toArray();
@@ -81,6 +84,8 @@ class ServiceOrderController extends Controller
                         'services' => $itemData['services'] ?? [],
                         'coating' => $itemData['coating'] ?? null,
                         'observations' => $itemData['observations'] ?? null,
+                        'purchase_date' => $itemData['purchase_date'] ?? null,
+                        'piece_value' => $itemData['piece_value'] ?? null,
                         'ai_identified_code' => $itemData['ai_identified_code'] ?? null,
                         'is_guarantee' => null,
                         'repair_price' => null,
@@ -216,6 +221,11 @@ class ServiceOrderController extends Controller
     public function update(Request $request, ServiceOrder $serviceOrder)
     {
         abort_unless(auth()->user()->isAdmin(), 403);
+        $request->validate([
+            'items' => 'required|array|min:1',
+            'items.*.purchase_date' => 'nullable|date',
+            'items.*.piece_value' => 'nullable|numeric|min:0|max:99999999.99',
+        ]);
         $submittedIds = collect($request->input('items', []))->pluck('id')->filter()->all();
         if ($serviceOrder->items()->whereHas('technicalSheet')->whereNotIn('id', $submittedIds)->exists()) {
             return back()->withInput()->with('error', 'Peças com ficha técnica não podem ser removidas da OS.');
@@ -258,6 +268,8 @@ class ServiceOrderController extends Controller
                             'coating' => $itemData['coating'] ?? null,
                             'services' => $itemData['services'],
                             'observations' => $itemData['observations'] ?? null,
+                            'purchase_date' => $itemData['purchase_date'] ?? null,
+                            'piece_value' => $itemData['piece_value'] ?? null,
                             'ai_identified_code' => $itemData['ai_identified_code'] ?? null,
                         ]);
 
@@ -270,6 +282,8 @@ class ServiceOrderController extends Controller
                             'coating' => $itemData['coating'] ?? null,
                             'services' => $itemData['services'],
                             'observations' => $itemData['observations'] ?? null,
+                            'purchase_date' => $itemData['purchase_date'] ?? null,
+                            'piece_value' => $itemData['piece_value'] ?? null,
                             'ai_identified_code' => $itemData['ai_identified_code'] ?? null,
                         ]);
 
@@ -283,6 +297,8 @@ class ServiceOrderController extends Controller
                         'coating' => $itemData['coating'] ?? null,
                         'services' => $itemData['services'],
                         'observations' => $itemData['observations'] ?? null,
+                        'purchase_date' => $itemData['purchase_date'] ?? null,
+                        'piece_value' => $itemData['piece_value'] ?? null,
                         'ai_identified_code' => $itemData['ai_identified_code'] ?? null,
                     ]);
 

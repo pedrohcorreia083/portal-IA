@@ -419,28 +419,26 @@
                 <div class="row">
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="purchase_date">Data da Compra</label>
+                            <label for="purchase-date-${index}">Data da compra</label>
                             <input 
                                 type="date" 
-                                name="purchase_date" 
-                                id="purchase_date" 
+                                name="items[${index}][purchase_date]" 
+                                id="purchase-date-${index}" 
                                 class="form-control"
-                                value="{{ old('purchase_date') }}"
                             >
                         </div>
                     </div>
 
                     <div class="col-md-6">
                         <div class="form-group">
-                            <label for="purchase_value">Valor da Compra</label>
+                            <label for="piece-value-${index}">Valor da peça</label>
                             <input 
                                 type="number" 
-                                name="purchase_value" 
-                                id="purchase_value" 
+                                name="items[${index}][piece_value]" 
+                                id="piece-value-${index}" 
                                 class="form-control"
-                                step="0.01"
+                                step="0.01" min="0" max="99999999.99"
                                 placeholder="R$ 0,00"
-                                value="{{ old('purchase_value') }}"
                             >
                         </div>
                     </div>

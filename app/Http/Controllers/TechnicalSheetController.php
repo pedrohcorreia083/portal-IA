@@ -73,7 +73,7 @@ class TechnicalSheetController extends Controller
                 'diagnosis' => ['required', 'string', 'max:10000'],
                 'repair_price' => ['nullable', 'required_if:is_guarantee,0', 'numeric', 'min:0', 'max:99999999.99'],
                 'changes_coating' => ['required', 'boolean'],
-                'target_coating' => ['nullable', 'required_if:changes_coating,1', Rule::in(array_keys(ServiceOrderItem::COATINGS))],
+                'alteration_type' => ['nullable', 'required_if:changes_coating,1', Rule::in(array_keys(TechnicalSheet::ALTERATION_TYPES))],
                 'payment_method' => ['nullable', 'string', 'max:100'],
                 'delivery_destination' => ['required', Rule::in(['store', 'customer'])],
             ];
