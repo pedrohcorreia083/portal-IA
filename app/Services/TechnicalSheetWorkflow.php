@@ -43,12 +43,15 @@ class TechnicalSheetWorkflow
                 if (!$sheet->changes_color) {
                     $sheet->new_color = null;
                 }
-                $sheet->status = $sheet->is_guarantee
-                    ? ($sheet->treatment === 'credit' ? 'credit_pending' : 'ready_for_service')
-                    : 'awaiting_customer';
+                $sheet->status = match (true) {
+                    $sheet->treatment === 'return_without_repair' => 'return_pending',
+                    $sheet->is_guarantee && $sheet->treatment === 'credit' => 'credit_pending',
+                    $sheet->is_guarantee => 'ready_for_service',
+                    default => 'awaiting_customer',
+                };
             } else {
                 $this->require(array_key_exists($action, $sheet->availableActions()), 'Esta ação não está disponível na etapa atual.');
-                if (in_array($action, ['approve', 'decline', 'rework', 'exchange', 'confirm_credit', 'deliver', 'send_store', 'revise_triage'], true)) {
+                if (in_array($action, ['approve', 'decline', 'rework', 'exchange', 'confirm_credit', 'complete_return', 'deliver', 'send_store', 'revise_triage'], true)) {
                     $this->require(!empty(trim($data['notes'] ?? '')), 'Registre a confirmação, referência ou motivo desta ação.');
                 }
                 $sheet->status = match ($action) {
@@ -58,7 +61,7 @@ class TechnicalSheetWorkflow
                     'start_service' => 'in_service',
                     'send_out' => 'awaiting_return',
                     'receive', 'finish_service', 'exchange' => 'inspection',
-                    'pass', 'confirm_credit' => 'completed',
+                    'pass', 'confirm_credit', 'complete_return' => 'completed',
                     'send_store' => 'sent_to_store',
                     'deliver' => 'delivered',
                 };
@@ -86,6 +89,7 @@ class TechnicalSheetWorkflow
                 'technical_status' => match (true) {
                     $sheet->status === 'cancelled' => 'SC',
                     !in_array($sheet->status, TechnicalSheet::CLOSED_STATUSES, true) => null,
+                    $sheet->treatment === 'return_without_repair' => 'SC',
                     $sheet->treatment === 'credit' => 'GCG',
                     $sheet->treatment === 'exchange' && $sheet->is_guarantee => 'GTC',
                     default => 'RP',

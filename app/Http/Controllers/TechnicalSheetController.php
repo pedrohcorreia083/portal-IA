@@ -60,7 +60,7 @@ class TechnicalSheetController extends Controller
             'action' => ['required', 'string', Rule::in([
                 'triage', 'start_analysis', 'approve', 'decline', 'exchange',
                 'start_service', 'send_out', 'receive', 'finish_service', 'pass',
-                'rework', 'confirm_credit', 'send_store', 'deliver', 'revise_triage',
+                'rework', 'confirm_credit', 'complete_return', 'send_store', 'deliver', 'revise_triage',
             ])],
             'version' => ['required', 'integer', 'min:0'],
             'notes' => ['nullable', 'string', 'max:5000'],

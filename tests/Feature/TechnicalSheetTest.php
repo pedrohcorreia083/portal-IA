@@ -124,6 +124,27 @@ class TechnicalSheetTest extends TestCase
         $this->assertSame('completed', $credit->serviceOrder->fresh()->status);
     }
 
+    public function test_return_without_repair_skips_service_and_can_only_be_finalized_or_retriaged(): void
+    {
+        $item = $this->item();
+        $this->actingAs($this->admin());
+
+        $this->triage($item, ['is_guarantee' => '0', 'treatment' => 'return_without_repair', 'repair_price' => '0'])
+            ->assertSessionHasNoErrors();
+
+        $this->assertSame('return_pending', $item->technicalSheet()->first()->status);
+        $this->act($item, 'start_service')->assertSessionHasErrors('action');
+        $this->act($item, 'complete_return', ['notes' => ''])->assertSessionHasErrors('action');
+        $this->act($item, 'revise_triage', ['notes' => 'Decisão corrigida'])->assertSessionHasNoErrors();
+        $this->assertSame('in_analysis', $item->technicalSheet()->first()->status);
+
+        $this->triage($item, ['is_guarantee' => '0', 'treatment' => 'return_without_repair', 'repair_price' => '0'])
+            ->assertSessionHasNoErrors();
+        $this->act($item, 'complete_return', ['notes' => 'Devolução sem reparo confirmada'])->assertSessionHasNoErrors();
+        $this->assertSame('completed', $item->technicalSheet()->first()->status);
+        $this->assertSame('SC', $item->fresh()->technical_status);
+    }
+
     public function test_access_and_stale_updates_are_blocked(): void
     {
         $item = $this->item();

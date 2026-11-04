@@ -182,6 +182,9 @@
                         @if ($sheet->status === 'credit_pending')
                             <p class="text-muted">Confirme somente após gerar o crédito no financeiro. Informe a referência nas
                         observações.</p>@endif
+                        @if ($sheet->status === 'return_pending')
+                            <p class="text-muted">Esta peça não seguirá para serviço ou inspeção. Registre o motivo e finalize a devolução, ou reabra somente a triagem para corrigir a decisão.</p>
+                        @endif
                         @if ($sheet->treatment === 'exchange' && $sheet->status === 'ready_for_service')
                             <p class="text-muted">Confirme após separar a peça de reposição. Registre o código e a referência do
                         estoque. Se não houver estoque, reabra a triagem para escolher outra solução.</p>@endif

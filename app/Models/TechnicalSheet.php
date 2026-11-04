@@ -32,6 +32,7 @@ class TechnicalSheet extends Model
         'awaiting_return' => 'Aguardando retorno do serviço',
         'inspection' => 'Em inspeção',
         'credit_pending' => 'Aguardando crédito',
+        'return_pending' => 'Aguardando finalização da devolução',
         'completed' => 'Item encerrado',
         'sent_to_store' => 'Enviado para loja',
         'delivered' => 'Entregue ao cliente',
@@ -87,7 +88,7 @@ class TechnicalSheet extends Model
         return match ($this->status) {
             'completed', 'delivered' => 'success',
             'cancelled' => 'danger',
-            'awaiting_customer', 'awaiting_return', 'credit_pending' => 'warning',
+            'awaiting_customer', 'awaiting_return', 'credit_pending', 'return_pending' => 'warning',
             'pending' => 'secondary',
             default => 'info',
         };
@@ -107,12 +108,13 @@ class TechnicalSheet extends Model
             'awaiting_return' => ['receive' => 'Receber serviço e enviar para inspeção'],
             'inspection' => ['pass' => 'Aprovar inspeção e encerrar item', 'rework' => 'Reprovar e devolver para serviço'],
             'credit_pending' => ['confirm_credit' => 'Confirmar crédito gerado'],
+            'return_pending' => ['complete_return' => 'Finalizar devolução sem reparo'],
             'completed' => ['send_store' => 'Registrar envio para loja', 'deliver' => 'Registrar entrega ao cliente'],
             'sent_to_store' => ['deliver' => 'Registrar entrega ao cliente'],
             default => [],
         };
 
-        if (in_array($this->status, ['awaiting_customer', 'ready_for_service', 'credit_pending'], true)) {
+        if (in_array($this->status, ['awaiting_customer', 'ready_for_service', 'credit_pending', 'return_pending'], true)) {
             $actions['revise_triage'] = 'Reabrir triagem / escolher outra solução';
         }
 
