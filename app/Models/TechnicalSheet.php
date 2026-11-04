@@ -12,12 +12,13 @@ class TechnicalSheet extends Model
         'status' => 'pending',
         'version' => 0,
         'changes_coating' => false,
-        'delivery_destination' => 'store',
+        'changes_color' => false,
     ];
 
     protected $casts = [
         'is_guarantee' => 'boolean',
         'changes_coating' => 'boolean',
+        'changes_color' => 'boolean',
         'repair_price' => 'decimal:2',
         'version' => 'integer',
     ];
@@ -49,11 +50,19 @@ class TechnicalSheet extends Model
         'credit' => 'Gerar crédito',
     ];
 
-    public const ALTERATION_TYPES = [
-        'finish' => 'Acabamento',
-        'color' => 'Cor',
+    public const FINISH_TYPES = [
+        'matte' => 'Fosco',
+        'polished' => 'Polido',
         'component' => 'Componente',
         'tying' => 'Amarração',
+    ];
+
+    public const COLORS = [
+        'golden' => 'Dourado',
+        'white_rhodium' => 'Ródio branco',
+        'black_rhodium' => 'Ródio negro',
+        'rose' => 'Rosé',
+        'mixed_bath' => 'Mix de banho',
     ];
 
     public const CLOSED_STATUSES = ['completed', 'sent_to_store', 'delivered', 'cancelled'];

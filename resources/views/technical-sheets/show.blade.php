@@ -99,28 +99,32 @@
                                         step="0.01" class="form-control"
                                         value="{{ old('repair_price', $sheet->repair_price) }}"><small
                                         class="text-muted">Obrigatório para serviços sem garantia.</small></div>
-                                <div class="form-group col-md-6"><label for="payment_method">Forma de pagamento
-                                        combinada</label><input name="payment_method" id="payment_method" class="form-control"
+                                <div class="form-group col-md-6"><label for="payment_method">Forma de pagamento</label><input name="payment_method" id="payment_method" class="form-control"
                                         maxlength="100" value="{{ old('payment_method', $sheet->payment_method) }}"></div>
-                                <div class="form-group col-md-6"><label for="changes_coating">Alteração:</label><select name="changes_coating" id="changes_coating"
+                                <div class="form-group col-md-3"><label for="changes_coating">Altera acabamento:</label><select name="changes_coating" id="changes_coating"
                                         class="form-control">
                                         <option value="0" @selected(!old('changes_coating', $sheet->changes_coating))>Não
                                         </option>
                                         <option value="1" @selected(old('changes_coating', $sheet->changes_coating))>Sim
                                         </option>
                                     </select></div>
-                                <div class="form-group col-md-6"><label for="alteration_type">Tipo de alteração</label><select
-                                        name="alteration_type" id="alteration_type" class="form-control">
+                                <div class="form-group col-md-3"><label for="new_finish">Novo acabamento:</label><select
+                                        name="new_finish" id="new_finish" class="form-control">
                                         <option value="">Não se aplica</option>
-                                        @foreach (\App\Models\TechnicalSheet::ALTERATION_TYPES as $value => $label)
-                                        <option value="{{ $value }}" @selected(old('alteration_type', $sheet->alteration_type) === $value)>{{ $label }}</option>@endforeach
+                                        @foreach (\App\Models\TechnicalSheet::FINISH_TYPES as $value => $label)
+                                        <option value="{{ $value }}" @selected(old('new_finish', $sheet->new_finish) === $value)>{{ $label }}</option>@endforeach
                                     </select></div>
-                                {{-- <div class="form-group col-md-6"><label for="delivery_destination">Destino da
-                                        devolução</label><select name="delivery_destination" id="delivery_destination"
+                                <div class="form-group col-md-3"><label for="changes_color">Altera cor:</label><select name="changes_color" id="changes_color"
                                         class="form-control">
-                                        <option value="store" @selected(old('delivery_destination', $sheet->delivery_destination) === 'store')>Loja</option>
-                                        <option value="customer" @selected(old('delivery_destination', $sheet->delivery_destination) === 'customer')>Cliente</option>
-                                    </select></div> --}}
+                                        <option value="0" @selected(!old('changes_color', $sheet->changes_color))>Não</option>
+                                        <option value="1" @selected(old('changes_color', $sheet->changes_color))>Sim</option>
+                                    </select></div>
+                                <div class="form-group col-md-3"><label for="new_color">Nova cor:</label><select
+                                        name="new_color" id="new_color" class="form-control">
+                                        <option value="">Não se aplica</option>
+                                        @foreach (\App\Models\TechnicalSheet::COLORS as $value => $label)
+                                        <option value="{{ $value }}" @selected(old('new_color', $sheet->new_color) === $value)>{{ $label }}</option>@endforeach
+                                    </select></div>
                             </div>
                             <div class="form-group"><label for="triage_notes">Orientação ao cliente /
                                     observações</label><textarea name="notes" id="triage_notes" rows="2" maxlength="5000"
@@ -145,20 +149,26 @@
                             </dd>
                             <dt class="col-sm-4">Pagamento</dt>
                             <dd class="col-sm-8">{{ $sheet->payment_method ?: 'Não informado' }}</dd>
-                            <dt class="col-sm-4">Tipo de alteração</dt>
+                            <dt class="col-sm-4">Altera acabamento</dt>
                             <dd class="col-sm-8">
                                 @if (!$sheet->changes_coating)
-                                    Não se aplica
-                                @elseif ($sheet->alteration_type)
-                                    {{ \App\Models\TechnicalSheet::ALTERATION_TYPES[$sheet->alteration_type] }}
-                                @elseif ($sheet->target_coating)
-                                    Acabamento ({{ \App\Models\ServiceOrderItem::COATINGS[$sheet->target_coating] ?? $sheet->target_coating }})
+                                    Não
+                                @elseif ($sheet->new_finish)
+                                    Sim — {{ \App\Models\TechnicalSheet::FINISH_TYPES[$sheet->new_finish] }}
                                 @else
-                                    A definir
+                                    Sim — a definir
                                 @endif
                             </dd>
-                            <dt class="col-sm-4">Devolução</dt>
-                            <dd class="col-sm-8">{{ $sheet->delivery_destination === 'customer' ? 'Cliente' : 'Loja' }}</dd>
+                            <dt class="col-sm-4">Altera cor</dt>
+                            <dd class="col-sm-8">
+                                @if (!$sheet->changes_color)
+                                    Não
+                                @elseif ($sheet->new_color)
+                                    Sim — {{ \App\Models\TechnicalSheet::COLORS[$sheet->new_color] }}
+                                @else
+                                    Sim — a definir
+                                @endif
+                            </dd>
                         </dl>
                     @endif
                 </div>
@@ -179,8 +189,8 @@
                             @csrf @method('PATCH')<input type="hidden" name="version" value="{{ $sheet->version }}">
                             <div class="form-group"><label for="action">Ação</label><select name="action" id="action"
                                     class="form-control"
-                                    required>@foreach ($sheet->availableActions() as $value => $label)@if ($value !== 'send_store' || $sheet->delivery_destination === 'store')
-                                        <option value="{{ $value }}" @selected(old('action') === $value)>{{ $label }}</option>@endif
+                                    required>@foreach ($sheet->availableActions() as $value => $label)
+                                        <option value="{{ $value }}" @selected(old('action') === $value)>{{ $label }}</option>
                                     @endforeach
                                 </select></div>
                             <div class="form-group"><label for="action_notes">Confirmação, referência ou motivo</label><textarea

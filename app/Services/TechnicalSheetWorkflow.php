@@ -31,14 +31,17 @@ class TechnicalSheetWorkflow
                 $this->require($data['is_guarantee'] || $data['treatment'] !== 'credit', 'Crédito está disponível apenas para garantia.');
                 $sheet->fill(collect($data)->only([
                     'is_guarantee', 'treatment', 'diagnosis', 'repair_price',
-                    'changes_coating', 'alteration_type', 'payment_method', 'delivery_destination',
+                    'changes_coating', 'new_finish', 'changes_color', 'new_color', 'payment_method',
                 ])->all());
                 if ($sheet->is_guarantee) {
                     $sheet->repair_price = null;
                     $sheet->payment_method = null;
                 }
                 if (!$sheet->changes_coating) {
-                    $sheet->alteration_type = null;
+                    $sheet->new_finish = null;
+                }
+                if (!$sheet->changes_color) {
+                    $sheet->new_color = null;
                 }
                 $sheet->status = $sheet->is_guarantee
                     ? ($sheet->treatment === 'credit' ? 'credit_pending' : 'ready_for_service')
@@ -47,9 +50,6 @@ class TechnicalSheetWorkflow
                 $this->require(array_key_exists($action, $sheet->availableActions()), 'Esta ação não está disponível na etapa atual.');
                 if (in_array($action, ['approve', 'decline', 'rework', 'exchange', 'confirm_credit', 'deliver', 'send_store', 'revise_triage'], true)) {
                     $this->require(!empty(trim($data['notes'] ?? '')), 'Registre a confirmação, referência ou motivo desta ação.');
-                }
-                if ($action === 'send_store') {
-                    $this->require($sheet->delivery_destination === 'store', 'O destino desta ficha é o cliente.');
                 }
                 $sheet->status = match ($action) {
                     'start_analysis', 'revise_triage' => 'in_analysis',
@@ -74,7 +74,7 @@ class TechnicalSheetWorkflow
                 'notes' => $data['notes'] ?? null,
                 'details' => $action === 'triage' ? $sheet->only([
                     'diagnosis', 'treatment', 'is_guarantee', 'repair_price',
-                    'changes_coating', 'alteration_type', 'payment_method', 'delivery_destination',
+                    'changes_coating', 'new_finish', 'changes_color', 'new_color', 'payment_method',
                 ]) : null,
             ]);
 

@@ -50,7 +50,7 @@ class TechnicalSheetTest extends TestCase
     {
         return $this->act($item, 'triage', $extra + [
             'is_guarantee' => '1', 'treatment' => 'assembly', 'diagnosis' => 'Requer montagem',
-            'changes_coating' => '0', 'delivery_destination' => 'store',
+            'changes_coating' => '0', 'changes_color' => '0',
         ]);
     }
 
@@ -143,13 +143,18 @@ class TechnicalSheetTest extends TestCase
         $item = $this->item();
         $this->actingAs($this->admin());
         $this->triage($item, ['is_guarantee' => '0'])->assertSessionHasErrors('repair_price');
-        $this->triage($item, ['changes_coating' => '1'])->assertSessionHasErrors('alteration_type');
+        $this->triage($item, ['changes_coating' => '1'])->assertSessionHasErrors('new_finish');
+        $this->triage($item, ['changes_color' => '1'])->assertSessionHasErrors('new_color');
         $this->triage($item, ['is_guarantee' => '0', 'repair_price' => 12, 'treatment' => 'credit'])->assertSessionHasErrors('action');
         $this->assertDatabaseCount('technical_sheets', 0);
 
         $itemWithAlteration = $this->item();
-        $this->triage($itemWithAlteration, ['changes_coating' => '1', 'alteration_type' => 'finish'])->assertSessionHasNoErrors();
-        $this->assertSame('finish', $itemWithAlteration->technicalSheet()->first()->alteration_type);
+        $this->triage($itemWithAlteration, [
+            'changes_coating' => '1', 'new_finish' => 'matte',
+            'changes_color' => '1', 'new_color' => 'golden',
+        ])->assertSessionHasNoErrors();
+        $this->assertSame('matte', $itemWithAlteration->technicalSheet()->first()->new_finish);
+        $this->assertSame('golden', $itemWithAlteration->technicalSheet()->first()->new_color);
     }
 
     public function test_decline_cancellation_and_legacy_routes_cannot_bypass_workflow(): void

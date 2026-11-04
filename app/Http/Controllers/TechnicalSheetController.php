@@ -48,7 +48,6 @@ class TechnicalSheetController extends Controller
             'is_guarantee' => $item->is_guarantee,
             'repair_price' => $item->repair_price,
             'diagnosis' => $item->technical_observations,
-            'delivery_destination' => 'store',
         ]);
 
         return view('technical-sheets.show', compact('item', 'sheet'));
@@ -73,9 +72,10 @@ class TechnicalSheetController extends Controller
                 'diagnosis' => ['required', 'string', 'max:10000'],
                 'repair_price' => ['nullable', 'required_if:is_guarantee,0', 'numeric', 'min:0', 'max:99999999.99'],
                 'changes_coating' => ['required', 'boolean'],
-                'alteration_type' => ['nullable', 'required_if:changes_coating,1', Rule::in(array_keys(TechnicalSheet::ALTERATION_TYPES))],
+                'new_finish' => ['nullable', 'required_if:changes_coating,1', Rule::in(array_keys(TechnicalSheet::FINISH_TYPES))],
+                'changes_color' => ['required', 'boolean'],
+                'new_color' => ['nullable', 'required_if:changes_color,1', Rule::in(array_keys(TechnicalSheet::COLORS))],
                 'payment_method' => ['nullable', 'string', 'max:100'],
-                'delivery_destination' => ['required', Rule::in(['store', 'customer'])],
             ];
         }
         $workflow->update($item, $request->validate($rules), $request->user()->id);
