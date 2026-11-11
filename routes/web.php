@@ -65,6 +65,9 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/{serviceOrder}/analysis', function () {
             abort(410, 'A análise deve ser realizada na Ficha técnica.');
         })->name('service-orders.save-analysis');
+
+        Route::patch('/{serviceOrder}/items/update-status', [ServiceOrderController::class, 'updateItemsStatus'])
+            ->name('service-orders.items.update-status');
     });
 
     Route::get('/technical-sheets', [\App\Http\Controllers\TechnicalSheetController::class, 'index'])->name('technical-sheets.index');

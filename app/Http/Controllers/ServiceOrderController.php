@@ -11,6 +11,8 @@ use Illuminate\Support\Facades\Http;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Exports\ServiceOrdersExport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Services\TechnicalSheetWorkflow;
+
 
 class ServiceOrderController extends Controller
 {
@@ -325,12 +327,14 @@ class ServiceOrderController extends Controller
             }
 
             // A newly added piece reopens an OS that already has technical work.
-            if ($serviceOrder->status !== 'cancelled' && $serviceOrder->items()->whereHas('technicalSheet')->exists()
+            if (
+                $serviceOrder->status !== 'cancelled' && $serviceOrder->items()->whereHas('technicalSheet')->exists()
                 && $serviceOrder->items()->where(function ($query) {
                     $query->whereDoesntHave('technicalSheet')->orWhereHas('technicalSheet', function ($sheet) {
                         $sheet->whereNotIn('status', \App\Models\TechnicalSheet::CLOSED_STATUSES);
                     });
-                })->exists()) {
+                })->exists()
+            ) {
                 $serviceOrder->update(['status' => ServiceOrder::STATUS_UNDER_ANALYSIS]);
             }
 
@@ -408,6 +412,45 @@ class ServiceOrderController extends Controller
     public function export(Request $request)
     {
         return Excel::download(new ServiceOrdersExport($request), 'ordens_servico.xlsx');
+    }
+
+    public function updateItemsStatus(Request $request, ServiceOrder $serviceOrder, TechnicalSheetWorkflow $workflow)
+    {
+        // Valida se a ação enviada é permitida
+        $request->validate([
+            'action' => 'required|in:send_store,deliver'
+        ]);
+
+        $successCount = 0;
+        $errorCount = 0;
+
+        foreach ($serviceOrder->items as $item) {
+            // Só processa se o item já tiver uma ficha técnica
+            if ($item->technicalSheet) {
+                try {
+                    // Usa o Workflow para atualizar, garantindo o histórico e regras
+                    $workflow->update($item, [
+                        'action' => $request->action,
+                        'version' => $item->technicalSheet->version, // Previne conflitos
+                        'notes' => 'Atualização de status em massa pelo painel da OS.'
+                    ], auth()->id());
+
+                    $successCount++;
+                } catch (\Exception $e) {
+                    // Se uma peça der erro (ex: status não permite a transição), conta como erro e continua
+                    \Log::error("Erro ao atualizar item {$item->id} em massa: " . $e->getMessage());
+                    $errorCount++;
+                }
+            } else {
+                $errorCount++;
+            }
+        }
+
+        if ($errorCount > 0) {
+            return back()->with('warning', "{$successCount} peças atualizadas. {$errorCount} peças não puderam ser atualizadas (verifique o status atual delas).");
+        }
+
+        return back()->with('success', 'Status de todas as peças atualizado com sucesso!');
     }
 
 }
