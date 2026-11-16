@@ -31,15 +31,20 @@ class ServiceOrderController extends Controller
 
     public function index(Request $request)
     {
-        $query = ServiceOrder::query();
+        $allowed = ['order_number', 'client_name', 'origin', 'order_date', 'status', 'created_at'];
+        $sort = in_array($request->sort, $allowed) ? $request->sort : 'created_at';
+        $dir = $request->direction === 'asc' ? 'asc' : 'desc';
 
-        $query->when($request->order_number, fn($q, $v) => $q->where('order_number', 'like', "%$v%"));
-        $query->when($request->client_name, fn($q, $v) => $q->where('client_name', 'like', "%$v%"));
-        $query->when($request->consultant_name, fn($q, $v) => $q->where('consultant_name', 'like', "%$v%"));
-        $query->when($request->origin, fn($q, $v) => $q->where('origin', $v));
-        $query->when($request->status, fn($q, $v) => $q->where('status', $v));
-
-        $serviceOrders = $query->orderByDesc('id')->paginate(10);
+        $serviceOrders = ServiceOrder::query()
+            ->when($request->order_number, fn($q, $v) => $q->where('order_number', 'like', "%{$v}%"))
+            ->when($request->client_name, fn($q, $v) => $q->where('client_name', 'like', "%{$v}%"))
+            ->when($request->consultant_name, fn($q, $v) => $q->where('consultant_name', 'like', "%{$v}%"))
+            ->when($request->origin, fn($q, $v) => $q->where('origin', $v))
+            ->when($request->status, fn($q, $v) => $q->where('status', $v))
+            ->when($request->date_from, fn($q, $v) => $q->whereDate('order_date', '>=', $v))
+            ->when($request->date_to, fn($q, $v) => $q->whereDate('order_date', '<=', $v))
+            ->orderBy($sort, $dir)
+            ->paginate($request->integer('per_page', 10));
 
         return view('service-orders.index', compact('serviceOrders'));
     }
@@ -420,6 +425,13 @@ class ServiceOrderController extends Controller
         $request->validate([
             'action' => 'required|in:send_store,deliver'
         ]);
+
+        $ids = $request->input('item_ids', []);
+
+        $query = $serviceOrder->items();
+        if (!empty($ids)) {
+            $query->whereIn('id', $ids);
+        }
 
         $successCount = 0;
         $errorCount = 0;
