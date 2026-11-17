@@ -226,7 +226,7 @@
     </div>
 @endsection
 
-@push('scripts')
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const table = document.getElementById('itemsTable');
@@ -365,4 +365,3 @@ document.addEventListener('DOMContentLoaded', function () {
     applyFilters();
 });
 </script>
-@endpush
