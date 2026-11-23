@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="utf-8">
-    <title>OS {{ $serviceOrder->order_number }} - LBF</title>
+    <title>OS {{ $serviceOrder->order_number }} - {{ config('brand.name') }}</title>
     <style>
         /* ===== VARIÁVEIS DA MARCA LBF ===== */
         :root {
@@ -191,8 +191,18 @@
 <body>
 
     <!-- Cabeçalho -->
+    @php
+        $brand = config('brand');
+        $brandName = $brand['name'] ?? 'Portal';
+        $brandLegal = $brand['legal_name'] ?? $brandName;
+        $brandLogo = $brand['logo'] ?? null;
+        $hasLogo = $brandLogo && file_exists(public_path($brandLogo));
+    @endphp
     <div class="header">
-        <h1>LBF - ORDEM DE SERVIÇO</h1>
+        @if ($hasLogo)
+            <img class="brand-logo" src="{{ public_path($brandLogo) }}" alt="{{ $brandName }}">
+        @endif
+        <h1>{{ $brandName }} &nbsp;·&nbsp; ORDEM DE SERVIÇO</h1>
         <div class="subtitle">{{ $serviceOrder->origin }}</div>
         <div class="os-number">Nº: <strong>{{ $serviceOrder->order_number }}</strong></div>
     </div>
@@ -217,6 +227,12 @@
     </div>
 
     <!-- Informações da Ordem de Serviço -->
+    {{-- A garantia é definida por peça na ficha técnica; a OS não tem mais
+         esse campo. Calculamos o tipo a partir dos itens. --}}
+    @php
+        $guaranteeCount = $serviceOrder->items->where('is_guarantee', true)->count();
+        $totalItems = $serviceOrder->items->count();
+    @endphp
     <div class="section">
         <div class="section-title">Informações da Ordem de Serviço</div>
         <table class="table">
@@ -229,10 +245,12 @@
             <tr>
                 <th>Tipo</th>
                 <td>
-                    @if($serviceOrder->is_guarantee)
+                    @if($guaranteeCount === 0)
+                    <span class="badge badge-primary">Assistência Técnica</span>
+                    @elseif($guaranteeCount === $totalItems)
                     <span class="badge badge-accent">Garantia</span>
                     @else
-                    <span class="badge badge-primary">Assistência Técnica</span>
+                    <span class="badge badge-accent">Garantia ({{ $guaranteeCount }} de {{ $totalItems }} peças)</span>
                     @endif
                 </td>
                 <th>Observações</th>
@@ -240,7 +258,7 @@
             </tr>
         </table>
 
-        @if($serviceOrder->is_guarantee)
+        @if($guaranteeCount > 0)
         <div class="guarantee-warning">
             ⚠️ ORDEM DE GARANTIA - PROCEDIMENTOS ESPECIAIS APLICÁVEIS
         </div>
@@ -304,7 +322,7 @@
     <!-- Assinaturas -->
     <div class="signature-area">
         <div class="signature-line">Assinatura do Cliente</div>
-        <div class="signature-line">Assinatura do Responsável LBF</div>
+        <div class="signature-line">Assinatura do Responsável {{ config('brand.name') }}</div>
     </div>
 
     <!-- Rodapé -->

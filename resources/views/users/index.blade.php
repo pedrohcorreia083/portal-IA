@@ -85,6 +85,11 @@
                                             <i class="fas fa-user-shield mr-1"></i>
                                             Administrador
                                         </span>
+                                    @elseif ($user->type === 'technical')
+                                        <span class="badge badge-warning px-3 py-2">
+                                            <i class="fas fa-screwdriver-wrench mr-1"></i>
+                                            Técnico
+                                        </span>
                                     @else
                                         <span class="badge badge-info px-3 py-2">
                                             <i class="fas fa-user mr-1"></i>
@@ -112,15 +117,15 @@
                                 </td>
 
                                 <td class="text-center">
-                                    <div class="btn-group shadow-sm">
-                                        <a href="{{ route('users.show', $user) }}" class="btn btn-info btn-sm"
-                                            title="Visualizar">
+                                    <div class="btn-group">
+                                        <a href="{{ route('users.show', $user) }}" class="icon-btn"
+                                            title="Visualizar" aria-label="Visualizar {{ $user->name }}">
                                             <i class="fas fa-eye"></i>
                                         </a>
 
-                                        <a href="{{ route('users.edit', $user) }}" class="btn btn-warning btn-sm"
-                                            title="Editar">
-                                            <i class="fas fa-edit"></i>
+                                        <a href="{{ route('users.edit', $user) }}" class="icon-btn"
+                                            title="Editar" aria-label="Editar {{ $user->name }}">
+                                            <i class="fas fa-pen"></i>
                                         </a>
 
                                         @if ($user->id !== auth()->id())
@@ -131,7 +136,8 @@
                                                 @csrf
                                                 @method('DELETE')
 
-                                                <button type="submit" class="btn btn-danger btn-sm" title="Excluir">
+                                                <button type="submit" class="icon-btn is-danger" title="Excluir"
+                                                        aria-label="Excluir {{ $user->name }}">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             </form>

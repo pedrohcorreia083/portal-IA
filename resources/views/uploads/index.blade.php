@@ -1,16 +1,16 @@
 @extends('layouts.app')
 
-@section('title', 'Upload de Imagens')
+@section('title', 'Biblioteca de imagens')
 
 @section('content-header')
-    <div>
-        <h1 class="m-0">Upload de Imagens</h1>
-    </div>
+    <div class="eyebrow">Acervo de produtos</div>
+    <h1 class="page-title">Biblioteca de imagens</h1>
+    <p class="page-subtitle">Envie e organize as imagens de referência usadas na identificação de peças.</p>
 @endsection
 
 @section('breadcrumb')
     <li class="breadcrumb-item active">
-        Upload de Imagens
+        Biblioteca de imagens
     </li>
 @endsection
 
@@ -18,31 +18,9 @@
     <div class="row">
         <div class="col-md-12">
 
-            {{-- Exibir mensagem de sucesso --}}
-            @if (session('success'))
-                <div class="alert alert-success alert-dismissible">
-                    <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
-                    <h5><i class="icon fas fa-check"></i> Sucesso!</h5>
-                    {{ session('success') }}
-                </div>
-            @endif
-
-            {{-- Exibir erros de validação --}}
-            @if ($errors->any())
-                <div class="alert alert-danger alert-dismissible">
-                    <button type="button" class="close" data-dismiss="alert" aria-hidden="true">×</button>
-                    <h5><i class="icon fas fa-ban"></i> Erro!</h5>
-                    <ul>
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-
-            <div class="card card-primary">
+            <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">Enviar Novas Imagens</h3>
+                    <h3 class="card-title">Enviar novas imagens</h3>
                 </div>
 
                 {{-- O enctype é OBRIGATÓRIO para upload de arquivos --}}

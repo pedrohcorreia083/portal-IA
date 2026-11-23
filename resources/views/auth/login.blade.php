@@ -1,11 +1,23 @@
+@php
+    $brand = config('brand');
+    $brandName = $brand['name'] ?? 'Portal';
+    $brandProduct = $brand['product'] ?? '';
+    $brandLegal = $brand['legal_name'] ?? $brandName;
+    $brandLogo = $brand['logo'] ?? null;
+    $hasLogo = $brandLogo && file_exists(public_path($brandLogo));
+    $colors = $brand['colors'] ?? [];
+
+    $taglineWords = preg_split('/\s+/', trim((string) ($brand['tagline'] ?? 'Elegância em cada detalhe.')));
+    $taglineLast = array_pop($taglineWords);
+@endphp
 <!DOCTYPE html>
 <html lang="pt-BR">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#E7E3DF">
-    <title>Bem-vindo | LBF Portal</title>
+    <meta name="theme-color" content="{{ $colors['cream'] ?? '#E7E3DF' }}">
+    <title>Acesso · {{ $brandName }} {{ $brandProduct }}</title>
 
     <!-- Fonte de corpo definida no manual da marca -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,12 +26,12 @@
 
     <style>
         :root {
-            --dark: #3D3935;
-            --taupe: #857874;
-            --sand: #C1B2A2;
-            --cream: #E7E3DF;
-            --white: #FFFFFF;
-            --danger: #B45353;
+            --dark: {{ $colors['dark'] ?? '#3D3935' }};
+            --taupe: {{ $colors['taupe'] ?? '#857874' }};
+            --sand: {{ $colors['sand'] ?? '#C1B2A2' }};
+            --cream: {{ $colors['cream'] ?? '#E7E3DF' }};
+            --white: {{ $colors['white'] ?? '#FFFFFF' }};
+            --danger: {{ $colors['danger'] ?? '#B45353' }};
         }
 
         * {
@@ -237,6 +249,16 @@
             width: auto;
             height: auto;
             object-fit: contain;
+        }
+
+        /* Fallback quando a empresa não tem arquivo de logo */
+        .logo-wordmark {
+            font-family: 'Alta', Georgia, 'Times New Roman', serif;
+            font-size: 36px;
+            letter-spacing: 8px;
+            text-transform: uppercase;
+            color: var(--dark);
+            line-height: 1;
         }
 
         .welcome-label {
@@ -591,38 +613,38 @@
     <main class="login-layout">
 
         <!-- PAINEL DA MARCA -->
-        <section class="brand-panel" aria-label="Apresentação LBF">
+        <section class="brand-panel" aria-label="Apresentação {{ $brandName }}">
 
             <div class="orb orb-one" aria-hidden="true"></div>
             <div class="orb orb-two" aria-hidden="true"></div>
             <div class="orb orb-three" aria-hidden="true"></div>
 
             <div class="brand-top">
-                LBF Portal
+                {{ $brandName }} {{ $brandProduct }}
             </div>
 
             <div class="brand-content">
                 <div class="eyebrow">
-                    Bem-vindo à LBF
+                    Bem-vindo à {{ $brandName }}
                 </div>
 
                 <h1 class="brand-title">
-                    Elegância<br>
-                    em cada<br>
-                    <em>detalhe.</em>
+                    {{ implode(' ', $taglineWords) }}<br>
+                    <em>{{ $taglineLast }}</em>
                 </h1>
 
                 <p class="brand-description">
-                    Um espaço criado para transformar ideias,
-                    conectar processos e acompanhar cada
-                    etapa com excelência.
+                    {{ $brand['description'] ?? '' }}
                 </p>
 
                 <div class="brand-divider"></div>
             </div>
 
             <div class="brand-footer">
-                Desde 2010 &nbsp;•&nbsp; LBF Semijoias
+                @if (!empty($brand['founded']))
+                    Desde {{ $brand['founded'] }} &nbsp;•&nbsp;
+                @endif
+                {{ $brandLegal }}
             </div>
 
         </section>
@@ -632,7 +654,11 @@
             <div class="login-container">
 
                 <div class="logo-wrap">
-                    <img src="{{ asset('images/logo/logo.png') }}" alt="LBF">
+                    @if ($hasLogo)
+                        <img src="{{ asset($brandLogo) }}" alt="{{ $brandName }}">
+                    @else
+                        <span class="logo-wordmark">{{ $brandName }}</span>
+                    @endif
                 </div>
 
                 <p class="welcome-label">
@@ -733,7 +759,7 @@
                 </form>
 
                 <div class="form-footer">
-                    © {{ date('Y') }} LBF Semijoias<br>
+                    © {{ date('Y') }} {{ $brandLegal }}<br>
                     Ambiente de acesso restrito.
                 </div>
 

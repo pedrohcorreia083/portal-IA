@@ -5,8 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rules;
 
 class UserController extends Controller
 {
@@ -20,7 +20,7 @@ class UserController extends Controller
      */
     private function checkAdmin()
     {
-        if (!auth()->check() || !auth()->user()->isAdmin()) {
+        if (! auth()->check() || ! auth()->user()->isAdmin()) {
             abort(403, 'Acesso negado. Apenas administradores podem acessar esta área.');
         }
     }
@@ -31,8 +31,9 @@ class UserController extends Controller
     public function index()
     {
         $this->checkAdmin();
-        
+
         $users = User::latest()->paginate(10);
+
         return view('users.index', compact('users'));
     }
 
@@ -42,7 +43,7 @@ class UserController extends Controller
     public function create()
     {
         $this->checkAdmin();
-        
+
         return view('users.create');
     }
 
@@ -58,7 +59,7 @@ class UserController extends Controller
             'last_name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'type' => 'required|in:admin,user',
+            'type' => 'required|in:admin,user,technical',
             'company_name' => 'nullable|string|max:255',
             'cnpj' => 'nullable|string|max:18|cnpj',
         ], [
@@ -107,7 +108,7 @@ class UserController extends Controller
     public function edit(User $user)
     {
         $this->checkAdmin();
-        
+
         return view('users.edit', compact('user'));
     }
 
@@ -121,8 +122,8 @@ class UserController extends Controller
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users,email,' . $user->id,
-            'type' => 'required|in:admin,user',
+            'email' => 'required|string|email|max:255|unique:users,email,'.$user->id,
+            'type' => 'required|in:admin,user,technical',
             'company_name' => 'nullable|string|max:255',
             'cnpj' => 'nullable|string|max:18|cnpj',
             'is_active' => 'boolean',
@@ -215,10 +216,11 @@ class UserController extends Controller
         }
 
         $user->update([
-            'is_active' => !$user->is_active
+            'is_active' => ! $user->is_active,
         ]);
 
         $status = $user->is_active ? 'ativado' : 'desativado';
+
         return redirect()->route('users.index')
             ->with('success', "Usuário {$status} com sucesso!");
     }

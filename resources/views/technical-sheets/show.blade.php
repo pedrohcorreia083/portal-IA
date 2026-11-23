@@ -1,25 +1,24 @@
 @extends('layouts.app')
 @section('title', 'Ficha técnica #' . $item->id)
-@section('content-header', 'Ficha técnica #' . $item->id)
+
+@section('content-header')
+    <div class="eyebrow">Ficha técnica #{{ $item->id }}</div>
+    <h1 class="page-title">{{ $item->product->name ?? $item->identified_product_name ?? 'Peça sem nome' }}</h1>
+    <p class="page-subtitle">
+        <a href="{{ route('service-orders.show', $item->serviceOrder) }}">{{ $item->serviceOrder->order_number }}</a>
+        · {{ $item->serviceOrder->client_name }} · {{ $item->serviceOrder->origin }}
+    </p>
+@endsection
+
+@section('page-actions')
+    <span class="badge badge-{{ $sheet->status_color }}">{{ $sheet->status_label }}</span>
+@endsection
+
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('technical-sheets.index') }}">Ficha técnica</a></li>
     <li class="breadcrumb-item active">Peça #{{ $item->id }}</li>
 @endsection
 @section('content')
-    @if ($errors->any())
-        <div class="alert alert-danger" role="alert">
-            <ul class="mb-0">@foreach ($errors->all() as $error)
-            <li>{{ $error }}</li>@endforeach
-            </ul>
-    </div>@endif
-    <div class="d-flex flex-wrap justify-content-between align-items-center mb-4">
-        <div>
-            <h3>{{ $item->product->name ?? $item->identified_product_name ?? 'Peça sem nome' }}</h3><a
-                href="{{ route('service-orders.show', $item->serviceOrder) }}">{{ $item->serviceOrder->order_number }}</a><span
-                class="text-muted"> · {{ $item->serviceOrder->client_name }} · {{ $item->serviceOrder->origin }}</span>
-        </div>
-        <span class="badge badge-{{ $sheet->status_color }} p-2">{{ $sheet->status_label }}</span>
-    </div>
     @if ($item->serviceOrder->status === 'cancelled')
     <div class="alert alert-warning">Esta OS está cancelada. A ficha está disponível somente para consulta.</div>@endif
     <div class="row">

@@ -8,26 +8,39 @@ use Illuminate\Validation\Rule;
 
 class UploadController extends Controller
 {
-    // private function pastaBase(): string
-    // {
-    //     return 'C:\\Users\\pedro\\Documents\\Projetos\\lbf_project_IA\\product-image';
-    // }
-
+    /**
+     * Diretório da biblioteca de imagens.
+     *
+     * Configurável por UPLOADS_BASE_PATH. Quando não configurado, mantém o
+     * caminho legado do servidor (se existir) ou usa storage/app/uploads.
+     */
     private function pastaBase(): string
     {
-        return '/home/ftpuser/ftp/upload';
+        $configurado = trim((string) config('filesystems.uploads.base_path'));
+
+        if ($configurado !== '') {
+            return rtrim($configurado, '/\\');
+        }
+
+        $legado = '/home/ftpuser/ftp/upload';
+
+        if (File::isDirectory($legado)) {
+            return $legado;
+        }
+
+        return storage_path('app/uploads');
     }
 
     private function pastasDisponiveis(): array
     {
         $base = $this->pastaBase();
 
-        if (!File::isDirectory($base)) {
+        if (! File::isDirectory($base)) {
             return [];
         }
 
         return collect(File::directories($base))
-            ->mapWithKeys(fn($diretorio) => [
+            ->mapWithKeys(fn ($diretorio) => [
                 basename($diretorio) => basename($diretorio),
             ])
             ->sortKeys()
@@ -43,7 +56,7 @@ class UploadController extends Controller
             404
         );
 
-        $arquivo = $this->pastaBase() . DIRECTORY_SEPARATOR . $pasta . DIRECTORY_SEPARATOR . $nome;
+        $arquivo = $this->pastaBase().DIRECTORY_SEPARATOR.$pasta.DIRECTORY_SEPARATOR.$nome;
 
         abort_unless(File::isFile($arquivo), 404);
 
@@ -57,21 +70,22 @@ class UploadController extends Controller
         $imagensSalvas = [];
 
         if ($pastaSelecionada && array_key_exists($pastaSelecionada, $pastas)) {
-            $diretorio = $this->pastaBase() . DIRECTORY_SEPARATOR . $pastaSelecionada;
+            $diretorio = $this->pastaBase().DIRECTORY_SEPARATOR.$pastaSelecionada;
 
             $imagensSalvas = collect(File::files($diretorio))
-                ->filter(fn($arquivo) => in_array(
+                ->filter(fn ($arquivo) => in_array(
                     strtolower($arquivo->getExtension()),
                     ['jpg', 'jpeg', 'png', 'gif', 'webp'],
                     true
                 ))
-                ->map(fn($arquivo) => $arquivo->getFilename())
+                ->map(fn ($arquivo) => $arquivo->getFilename())
                 ->values()
                 ->all();
         }
 
         return view('uploads.index', compact('pastas', 'pastaSelecionada', 'imagensSalvas'));
     }
+
     public function store(Request $request)
     {
         $pastas = $this->pastasDisponiveis();
@@ -83,17 +97,26 @@ class UploadController extends Controller
         ]);
 
         $pasta = $request->input('pasta_destino');
-        $destino = $this->pastaBase() . DIRECTORY_SEPARATOR . $pasta;
+        $destino = $this->pastaBase().DIRECTORY_SEPARATOR.$pasta;
         $imagens = $request->file('imagens');
 
         // Verifica nomes repetidos no próprio envio e arquivos já existentes.
         $nomes = [];
 
         foreach ($imagens as $imagem) {
-            $nome = $imagem->getClientOriginalName();
+            // basename() já é aplicado pelo Symfony; reforçamos aqui e
+            // recusamos nomes vazios ou ocultos.
+            $nome = basename($imagem->getClientOriginalName());
+
+            if ($nome === '' || str_starts_with($nome, '.')) {
+                return back()
+                    ->withErrors(['imagens' => 'Um dos arquivos possui um nome inválido.'])
+                    ->withInput();
+            }
+
             $chave = mb_strtolower($nome);
 
-            if (isset($nomes[$chave]) || file_exists($destino . DIRECTORY_SEPARATOR . $nome)) {
+            if (isset($nomes[$chave]) || file_exists($destino.DIRECTORY_SEPARATOR.$nome)) {
                 return back()
                     ->withErrors(['imagens' => "O arquivo '{$nome}' já existe ou foi selecionado mais de uma vez."])
                     ->withInput();
@@ -103,11 +126,11 @@ class UploadController extends Controller
         }
 
         foreach ($imagens as $imagem) {
-            $imagem->move($destino, $imagem->getClientOriginalName());
+            $imagem->move($destino, basename($imagem->getClientOriginalName()));
         }
 
         return redirect()
             ->route('uploads.index', ['pasta' => $pasta])
-            ->with('success', count($imagens) . " imagem(ns) enviada(s) para {$pasta}.");
+            ->with('success', count($imagens)." imagem(ns) enviada(s) para {$pasta}.");
     }
 }

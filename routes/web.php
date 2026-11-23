@@ -1,20 +1,22 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\HomeController;
-use App\Http\Controllers\UserController;
 use App\Http\Controllers\ServiceOrderController;
-use App\Http\Controllers\ServiceOrderItemController;
+use App\Http\Controllers\TechnicalSheetController;
 use App\Http\Controllers\UploadController;
+use App\Http\Controllers\UserController;
+use App\Models\ServiceOrder;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Route;
 
 // Redirecionar rota raiz para login
 Route::get('/', function () {
     return redirect()->route('login');
 });
 
-// Rotas de autenticação
-Auth::routes();
+// Rotas de autenticação.
+// O cadastro público está desativado: contas são criadas apenas por um administrador.
+Auth::routes(['register' => false]);
 
 // Rotas protegidas (apenas para usuários autenticados)
 Route::middleware(['auth'])->group(function () {
@@ -58,7 +60,7 @@ Route::middleware(['auth'])->group(function () {
         Route::patch('/{serviceOrder}/update-status', [ServiceOrderController::class, 'updateStatus'])->name('service-orders.update-status');
 
         // A análise técnica foi concentrada nas fichas individuais.
-        Route::get('/{serviceOrder}/analysis', function (\App\Models\ServiceOrder $serviceOrder) {
+        Route::get('/{serviceOrder}/analysis', function (ServiceOrder $serviceOrder) {
             return redirect()->route('technical-sheets.index', ['order_number' => $serviceOrder->order_number]);
         })->name('service-orders.analysis');
 
@@ -70,7 +72,7 @@ Route::middleware(['auth'])->group(function () {
             ->name('service-orders.items.update-status');
     });
 
-    Route::get('/technical-sheets', [\App\Http\Controllers\TechnicalSheetController::class, 'index'])->name('technical-sheets.index');
-    Route::get('/technical-sheets/{item}', [\App\Http\Controllers\TechnicalSheetController::class, 'show'])->name('technical-sheets.show');
-    Route::patch('/technical-sheets/{item}', [\App\Http\Controllers\TechnicalSheetController::class, 'update'])->name('technical-sheets.update');
+    Route::get('/technical-sheets', [TechnicalSheetController::class, 'index'])->name('technical-sheets.index');
+    Route::get('/technical-sheets/{item}', [TechnicalSheetController::class, 'show'])->name('technical-sheets.show');
+    Route::patch('/technical-sheets/{item}', [TechnicalSheetController::class, 'update'])->name('technical-sheets.update');
 });

@@ -2,26 +2,28 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\ServiceOrder;
-use App\Models\Product;
-use App\Models\ServiceOrderItem;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Http;
-use Barryvdh\DomPDF\Facade\Pdf;
 use App\Exports\ServiceOrdersExport;
-use Maatwebsite\Excel\Facades\Excel;
+use App\Models\Product;
+use App\Models\ServiceOrder;
+use App\Models\ServiceOrderItem;
 use App\Services\TechnicalSheetWorkflow;
-
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ServiceOrderController extends Controller
 {
-    private $flaskApiUrl = 'http://localhost:9059';
-
     const STATUS_CREATED = 'created';
+
     const STATUS_UNDER_ANALYSIS = 'under_analysis';
+
     const STATUS_APPROVED = 'approved';
+
     const STATUS_COMPLETED = 'completed';
+
     const STATUS_CANCELLED = 'cancelled';
 
     public function __construct()
@@ -34,21 +36,22 @@ class ServiceOrderController extends Controller
         $allowed = ['order_number', 'client_name', 'origin', 'order_date', 'status', 'created_at'];
         $sort = in_array($request->sort, $allowed) ? $request->sort : 'created_at';
         $dir = $request->direction === 'asc' ? 'asc' : 'desc';
+        $perPage = min(max($request->integer('per_page', 10), 1), 100);
 
         $serviceOrders = ServiceOrder::query()
-            ->when($request->order_number, fn($q, $v) => $q->where('order_number', 'like', "%{$v}%"))
-            ->when($request->client_name, fn($q, $v) => $q->where('client_name', 'like', "%{$v}%"))
-            ->when($request->consultant_name, fn($q, $v) => $q->where('consultant_name', 'like', "%{$v}%"))
-            ->when($request->origin, fn($q, $v) => $q->where('origin', $v))
-            ->when($request->status, fn($q, $v) => $q->where('status', $v))
-            ->when($request->date_from, fn($q, $v) => $q->whereDate('order_date', '>=', $v))
-            ->when($request->date_to, fn($q, $v) => $q->whereDate('order_date', '<=', $v))
+            ->withCount('items')
+            ->when($request->order_number, fn ($q, $v) => $q->where('order_number', 'like', "%{$v}%"))
+            ->when($request->client_name, fn ($q, $v) => $q->where('client_name', 'like', "%{$v}%"))
+            ->when($request->consultant_name, fn ($q, $v) => $q->where('consultant_name', 'like', "%{$v}%"))
+            ->when($request->origin, fn ($q, $v) => $q->where('origin', $v))
+            ->when($request->status, fn ($q, $v) => $q->where('status', $v))
+            ->when($request->date_from, fn ($q, $v) => $q->whereDate('order_date', '>=', $v))
+            ->when($request->date_to, fn ($q, $v) => $q->whereDate('order_date', '<=', $v))
             ->orderBy($sort, $dir)
-            ->paginate($request->integer('per_page', 10));
+            ->paginate($perPage);
 
         return view('service-orders.index', compact('serviceOrders'));
     }
-
 
     public function create()
     {
@@ -84,7 +87,7 @@ class ServiceOrderController extends Controller
 
             $serviceOrder = ServiceOrder::create($serviceOrderData);
 
-            if (!empty($request->items) && is_array($request->items)) {
+            if (! empty($request->items) && is_array($request->items)) {
                 foreach ($request->items as $itemData) {
                     $item = new ServiceOrderItem([
                         'identified_product_name' => $itemData['product_name'] ?? null,
@@ -113,9 +116,11 @@ class ServiceOrderController extends Controller
                 ->route('service-orders.show', $serviceOrder)
                 ->with('success', 'Ordem de Serviço criada com sucesso! Aguardando análise técnica.');
         } catch (\Throwable $e) {
+            report($e);
+
             return back()
                 ->withInput()
-                ->withErrors(['error' => 'Erro ao salvar OS: ' . $e->getMessage()]);
+                ->withErrors(['error' => 'Não foi possível salvar a ordem de serviço. Verifique os dados e tente novamente.']);
         }
     }
 
@@ -128,19 +133,25 @@ class ServiceOrderController extends Controller
             ]);
 
             $tempPath = $request->file('image')->getPathname();
-            $url = rtrim($this->flaskApiUrl, '/') . '/analisar';
+            $url = rtrim((string) config('services.flask.url'), '/').'/analisar';
 
             $response = Http::timeout(60)
+                ->connectTimeout(5)
                 ->attach('file', file_get_contents($tempPath), 'image.jpg')
                 ->post($url, [
                     'produto' => $request->product_type,
                 ]);
 
             if ($response->failed()) {
+                Log::warning('Falha na análise de IA', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+
                 return response()->json([
                     'success' => false,
-                    'error' => 'Erro na análise da IA: ' . $response->body(),
-                ], 500);
+                    'error' => 'O serviço de análise não conseguiu processar a imagem.',
+                ], 502);
             }
 
             $data = $response->json();
@@ -165,10 +176,14 @@ class ServiceOrderController extends Controller
                 ] : null,
                 'similarity' => $bestMatch ? round($bestMatch['similaridade'] * 100, 1) : 0,
             ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Throwable $e) {
+            report($e);
+
             return response()->json([
                 'success' => false,
-                'error' => 'Erro interno: ' . $e->getMessage(),
+                'error' => 'Não foi possível concluir a análise da imagem. Tente novamente.',
             ], 500);
         }
     }
@@ -206,12 +221,13 @@ class ServiceOrderController extends Controller
     public function show(ServiceOrder $serviceOrder)
     {
         $serviceOrder->load('items.product', 'items.technicalSheet', 'technicalAnalyst');
+
         return view('service-orders.show', compact('serviceOrder'));
     }
 
     public function edit(ServiceOrder $serviceOrder)
     {
-        if (!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             return redirect()->route('service-orders.show', $serviceOrder)
                 ->with('warning', 'Apenas administradores podem editar ordens de serviço.');
         }
@@ -247,7 +263,6 @@ class ServiceOrderController extends Controller
                 'order_date' => $request->order_date,
                 'origin' => $request->origin,
                 'observations' => $request->observations,
-                'is_guarantee' => $request->has('is_guarantee'),
             ]);
 
             $existingItemIds = $serviceOrder->items->pluck('id')->toArray();
@@ -263,7 +278,7 @@ class ServiceOrderController extends Controller
 
                 $item = null;
 
-                if (!empty($itemData['id'])) {
+                if (! empty($itemData['id'])) {
 
                     $item = $serviceOrder->items()->find($itemData['id']);
 
@@ -321,13 +336,13 @@ class ServiceOrderController extends Controller
                         ->store('service-order-items', 'public');
 
                     $item->update([
-                        'product_image' => $path
+                        'product_image' => $path,
                     ]);
                 }
             }
 
             $itemsToDelete = array_diff($existingItemIds, $updatedItemIds);
-            if (!empty($itemsToDelete)) {
+            if (! empty($itemsToDelete)) {
                 $serviceOrder->items()->whereIn('id', $itemsToDelete)->delete();
             }
 
@@ -346,9 +361,11 @@ class ServiceOrderController extends Controller
             return redirect()->route('service-orders.show', $serviceOrder)
                 ->with('success', 'Ordem de Serviço atualizada com sucesso!');
         } catch (\Exception $e) {
+            report($e);
+
             return redirect()->back()
                 ->withInput()
-                ->with('error', 'Erro ao atualizar ordem de serviço: ' . $e->getMessage());
+                ->with('error', 'Não foi possível atualizar a ordem de serviço. Verifique os dados e tente novamente.');
         }
     }
 
@@ -369,7 +386,13 @@ class ServiceOrderController extends Controller
         $this->checkAdmin();
 
         $request->validate([
-            'status' => 'required|in:pending,in_progress,completed,cancelled'
+            'status' => ['required', Rule::in([
+                ServiceOrder::STATUS_CREATED,
+                ServiceOrder::STATUS_UNDER_ANALYSIS,
+                ServiceOrder::STATUS_APPROVED,
+                ServiceOrder::STATUS_COMPLETED,
+                ServiceOrder::STATUS_CANCELLED,
+            ])],
         ]);
 
         if ($serviceOrder->items()->whereHas('technicalSheet')->exists()) {
@@ -409,7 +432,7 @@ class ServiceOrderController extends Controller
 
     private function checkAdmin()
     {
-        if (!auth()->user()->isAdmin()) {
+        if (! auth()->user()->isAdmin()) {
             abort(403, 'Acesso negado. Apenas administradores podem realizar esta ação.');
         }
     }
@@ -423,20 +446,31 @@ class ServiceOrderController extends Controller
     {
         // Valida se a ação enviada é permitida
         $request->validate([
-            'action' => 'required|in:send_store,deliver'
+            'action' => ['required', Rule::in(['send_store', 'deliver'])],
+            'item_ids' => ['nullable', 'array'],
+            'item_ids.*' => ['integer'],
         ]);
 
         $ids = $request->input('item_ids', []);
 
-        $query = $serviceOrder->items();
-        if (!empty($ids)) {
-            $query->whereIn('id', $ids);
+        if (empty($ids)) {
+            return back()->with('error', 'Selecione ao menos uma peça para atualizar.');
+        }
+
+        // Só as peças selecionadas pelo usuário, e apenas as que pertencem a esta OS.
+        $items = $serviceOrder->items()
+            ->whereIn('id', $ids)
+            ->with('technicalSheet')
+            ->get();
+
+        if ($items->isEmpty()) {
+            return back()->with('error', 'Nenhuma peça válida foi selecionada.');
         }
 
         $successCount = 0;
         $errorCount = 0;
 
-        foreach ($serviceOrder->items as $item) {
+        foreach ($items as $item) {
             // Só processa se o item já tiver uma ficha técnica
             if ($item->technicalSheet) {
                 try {
@@ -444,13 +478,13 @@ class ServiceOrderController extends Controller
                     $workflow->update($item, [
                         'action' => $request->action,
                         'version' => $item->technicalSheet->version, // Previne conflitos
-                        'notes' => 'Atualização de status em massa pelo painel da OS.'
+                        'notes' => 'Atualização de status em massa pelo painel da OS.',
                     ], auth()->id());
 
                     $successCount++;
                 } catch (\Exception $e) {
                     // Se uma peça der erro (ex: status não permite a transição), conta como erro e continua
-                    \Log::error("Erro ao atualizar item {$item->id} em massa: " . $e->getMessage());
+                    Log::error("Erro ao atualizar item {$item->id} em massa: ".$e->getMessage());
                     $errorCount++;
                 }
             } else {
@@ -459,10 +493,9 @@ class ServiceOrderController extends Controller
         }
 
         if ($errorCount > 0) {
-            return back()->with('warning', "{$successCount} peças atualizadas. {$errorCount} peças não puderam ser atualizadas (verifique o status atual delas).");
+            return back()->with('warning', "{$successCount} peça(s) atualizada(s). {$errorCount} peça(s) não puderam ser atualizadas (verifique o status atual delas).");
         }
 
-        return back()->with('success', 'Status de todas as peças atualizado com sucesso!');
+        return back()->with('success', "Status de {$successCount} peça(s) atualizado(s) com sucesso!");
     }
-
 }

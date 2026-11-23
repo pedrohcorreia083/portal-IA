@@ -85,6 +85,7 @@ Novo Usuário
                 <select class="form-control @error('type') is-invalid @enderror" id="type" name="type" required>
                     <option value="">Selecione...</option>
                     <option value="user" {{ old('type') == 'user' ? 'selected' : '' }}>Usuário</option>
+                    <option value="technical" {{ old('type') == 'technical' ? 'selected' : '' }}>Técnico</option>
                     <option value="admin" {{ old('type') == 'admin' ? 'selected' : '' }}>Administrador</option>
                 </select>
                 @error('type')

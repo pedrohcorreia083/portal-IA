@@ -64,6 +64,21 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Biblioteca de imagens de produto
+    |--------------------------------------------------------------------------
+    |
+    | Diretório onde as imagens de referência dos produtos são mantidas e onde
+    | o módulo "Arquivos" grava novos envios. Precisa ser configurado por
+    | ambiente para não depender de um caminho absoluto do servidor.
+    |
+    */
+
+    'uploads' => [
+        'base_path' => env('UPLOADS_BASE_PATH'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Symbolic Links
     |--------------------------------------------------------------------------
     |

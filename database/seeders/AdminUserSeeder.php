@@ -2,31 +2,45 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Console\Seeds\WithoutModelEvents;
-use Illuminate\Database\Seeder;
 use App\Models\User;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class AdminUserSeeder extends Seeder
 {
     public function run(): void
     {
-        $user = User::create([
-            'name' => 'Administrador LBF',
-            'last_name' => 'Sistema', // ← adicione o last_name
-            'email' => 'admin@lbfportal.com',
-            'password' => Hash::make('C@adead0'),
-            'email_verified_at' => now(),
-            'type' => 'admin', // ← use o campo type como 'admin'
-            'is_active' => true,
-            'permissions' => json_encode(['all']), // ← permissões totais
-            // company_name e cnpj podem ficar null para admin
-        ]);
+        $email = env('ADMIN_EMAIL', 'admin@lbfportal.com');
+        $password = env('ADMIN_PASSWORD');
+        $generated = false;
 
-        $this->command->info('Usuário administrador criado!');
-        $this->command->info('Email: admin@lbfportal.com');
-        $this->command->info('Senha: C@adead0');
-        $this->command->info('Tipo: Administrador');
-        $this->command->info('Permissões: Todas');
+        if (empty($password)) {
+            // Sem senha no ambiente, gera uma aleatória e exibe uma única vez.
+            $password = Str::password(16);
+            $generated = true;
+        }
+
+        $user = User::updateOrCreate(
+            ['email' => $email],
+            [
+                'name' => 'Administrador LBF',
+                'last_name' => 'Sistema',
+                'password' => Hash::make($password),
+                'email_verified_at' => now(),
+                'type' => 'admin',
+                'is_active' => true,
+                'permissions' => ['all'],
+            ]
+        );
+
+        $this->command->info('Usuário administrador criado/atualizado!');
+        $this->command->info("Email: {$user->email}");
+
+        if ($generated) {
+            $this->command->warn("Senha gerada (guarde agora, não será exibida novamente): {$password}");
+        } else {
+            $this->command->info('Senha definida pela variável de ambiente ADMIN_PASSWORD.');
+        }
     }
 }

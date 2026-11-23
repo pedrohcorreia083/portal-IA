@@ -1,11 +1,16 @@
 @extends('layouts.app')
 @section('title', 'Ficha técnica')
-@section('content-header', 'Ficha técnica')
+
+@section('content-header')
+    <div class="eyebrow">Atendimento técnico</div>
+    <h1 class="page-title">Fichas técnicas</h1>
+    <p class="page-subtitle">Peças recebidas nas ordens de serviço — acompanhe a triagem e o andamento individual.</p>
+@endsection
+
 @section('breadcrumb')
     <li class="breadcrumb-item active">Ficha técnica</li>
 @endsection
 @section('content')
-    <p class="text-muted">Peças recebidas nas ordens de serviço. Acompanhe a triagem e o andamento individual.</p>
     <form method="GET" action="{{ route('technical-sheets.index') }}" class="card shadow-sm">
         <div class="card-header">
             <h3 class="card-title"><i class="fas fa-filter mr-2"></i>Filtros</h3>

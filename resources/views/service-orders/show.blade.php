@@ -1,7 +1,20 @@
 @extends('layouts.app')
 
 @section('title', 'OS: ' . $serviceOrder->order_number)
-@section('content-header', 'Ordem de serviço')
+
+@section('content-header')
+    <div class="eyebrow">Ordem de serviço</div>
+    <h1 class="page-title">#{{ $serviceOrder->order_number }}</h1>
+    <p class="page-subtitle">
+        {{ $serviceOrder->client_name }} · {{ $serviceOrder->origin }} ·
+        {{ $serviceOrder->order_date->format('d/m/Y') }}
+    </p>
+@endsection
+
+@section('page-actions')
+    <span class="badge {{ $serviceOrder->status_badge_class }}">{{ $serviceOrder->status_label }}</span>
+@endsection
+
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('service-orders.index') }}">Ordens de Serviço</a></li>
     <li class="breadcrumb-item active">{{ $serviceOrder->order_number }}</li>
@@ -21,18 +34,6 @@
         #itemsTable tbody tr { transition: background-color .15s; }
         .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
     </style>
-
-    {{-- Cabeçalho da OS --}}
-    <div class="d-flex justify-content-between align-items-center flex-wrap mb-3">
-        <div>
-            <h3 class="mb-1">#{{ $serviceOrder->order_number }}</h3>
-            <p class="text-muted mb-0">
-                {{ $serviceOrder->client_name }} · {{ $serviceOrder->origin }} ·
-                {{ $serviceOrder->order_date->format('d/m/Y') }}
-            </p>
-        </div>
-        <span class="badge {{ $serviceOrder->status_badge_class }} p-2">{{ $serviceOrder->status_label }}</span>
-    </div>
 
     {{-- Resumo por status --}}
     <div class="row mb-3">
@@ -138,7 +139,7 @@
                                 <th data-sort="name" class="sortable">Peça</th>
                                 <th data-sort="coating" class="sortable">Acabamento recebido</th>
                                 <th data-sort="status" class="sortable">Status da peça</th>
-                                <th class="text-right"></th>
+                                <th class="text-right">Ação</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -212,7 +213,7 @@
                     <a href="{{ route('technical-sheets.index', ['order_number' => $serviceOrder->order_number]) }}"
                        class="btn btn-primary btn-block">Fichas desta OS</a>
                     <a href="{{ route('service-orders.pdf', $serviceOrder) }}" target="_blank" rel="noopener"
-                       class="btn btn-success btn-block">Visualizar PDF</a>
+                       class="btn btn-dark btn-block">Visualizar PDF</a>
                     <a href="{{ route('service-orders.download-pdf', $serviceOrder) }}"
                        class="btn btn-outline-success btn-block">Baixar PDF</a>
                     @if (auth()->user()->isAdmin())
@@ -226,7 +227,7 @@
     </div>
 @endsection
 
-
+@push('js')
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     const table = document.getElementById('itemsTable');
@@ -365,3 +366,4 @@ document.addEventListener('DOMContentLoaded', function () {
     applyFilters();
 });
 </script>
+@endpush

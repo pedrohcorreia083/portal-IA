@@ -50,12 +50,12 @@
     {{-- AÇÕES SUPERIORES --}}
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
         <div class="d-flex flex-wrap align-items-center gap-2 w-100 w-md-auto">
-            <a href="{{ route('service-orders.export', request()->all()) }}" class="btn btn-success shadow-sm">
-                <i class="fas fa-file-excel mr-1"></i>
+            <a href="{{ route('service-orders.export', request()->all()) }}" class="btn btn-outline-secondary">
+                <i class="fas fa-file-excel"></i>
                 Exportar Excel
             </a>
-            <a href="{{ route('service-orders.create') }}" class="btn btn-primary shadow-sm">
-                <i class="fas fa-plus mr-1"></i>
+            <a href="{{ route('service-orders.create') }}" class="btn btn-primary">
+                <i class="fas fa-plus"></i>
                 Nova OS
             </a>
         </div>
@@ -306,7 +306,7 @@
 
                                 <td>
                                     <span class="badge badge-light border px-3 py-2">
-                                        {{ $serviceOrder->total_items }}
+                                        {{ $serviceOrder->items_count }}
                                     </span>
                                 </td>
 
@@ -317,14 +317,14 @@
                                 </td>
 
                                 <td class="text-center">
-                                    <div class="btn-group shadow-sm">
-                                        <a href="{{ route('service-orders.show', $serviceOrder) }}" class="btn btn-info btn-sm"
-                                            title="Visualizar">
+                                    <div class="btn-group">
+                                        <a href="{{ route('service-orders.show', $serviceOrder) }}" class="icon-btn"
+                                            title="Visualizar" aria-label="Visualizar OS {{ $serviceOrder->order_number }}">
                                             <i class="fas fa-eye"></i>
                                         </a>
                                         <a href="{{ route('service-orders.edit', $serviceOrder) }}"
-                                            class="btn btn-warning btn-sm" title="Editar">
-                                            <i class="fas fa-edit"></i>
+                                            class="icon-btn" title="Editar" aria-label="Editar OS {{ $serviceOrder->order_number }}">
+                                            <i class="fas fa-pen"></i>
                                         </a>
                                     </div>
                                 </td>
@@ -378,7 +378,7 @@
 
 @endsection
 
-@push('scripts')
+@push('js')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const selectAll = document.getElementById('selectAllOrders');

@@ -64,6 +64,7 @@ Editar Usuário: {{ $user->full_name }}
                         <label for="type">Tipo de Usuário *</label>
                         <select class="form-control @error('type') is-invalid @enderror" id="type" name="type" required>
                             <option value="user" {{ old('type', $user->type) == 'user' ? 'selected' : '' }}>Usuário</option>
+                            <option value="technical" {{ old('type', $user->type) == 'technical' ? 'selected' : '' }}>Técnico</option>
                             <option value="admin" {{ old('type', $user->type) == 'admin' ? 'selected' : '' }}>Administrador</option>
                         </select>
                         @error('type')

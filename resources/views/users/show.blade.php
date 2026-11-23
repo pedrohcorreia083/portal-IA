@@ -21,6 +21,8 @@ Perfil do Usuário
                 <p class="text-muted text-center">
                     @if($user->isAdmin())
                     <span class="badge badge-success">Administrador</span>
+                    @elseif($user->type === 'technical')
+                    <span class="badge badge-warning">Técnico</span>
                     @else
                     <span class="badge badge-info">Usuário</span>
                     @endif

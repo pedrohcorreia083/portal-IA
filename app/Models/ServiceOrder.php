@@ -4,10 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Models\ServiceOrderProduct;
-
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ServiceOrder extends Model
 {
@@ -15,9 +13,13 @@ class ServiceOrder extends Model
 
     // Status da OS
     const STATUS_CREATED = 'created';
+
     const STATUS_UNDER_ANALYSIS = 'under_analysis';
+
     const STATUS_APPROVED = 'approved';
+
     const STATUS_COMPLETED = 'completed';
+
     const STATUS_CANCELLED = 'cancelled';
 
     protected $fillable = [
@@ -53,22 +55,6 @@ class ServiceOrder extends Model
     }
 
     // Escopos
-    public function scopePending($query)
-    {
-        return $query->where('status', 'pending');
-    }
-
-    public function scopeInProgress($query)
-    {
-        return $query->where('status', 'in_progress');
-    }
-
-    public function scopeCompleted($query)
-    {
-        return $query->where('status', 'completed');
-    }
-
-    // NOVOS ESCOPOS para análise técnica
     public function scopeNeedsAnalysis($query)
     {
         return $query->where('status', self::STATUS_CREATED);
@@ -155,22 +141,13 @@ class ServiceOrder extends Model
                     ? intval(substr($lastOrder->order_number, -4)) + 1
                     : 1;
 
-                $model->order_number = 'OS' . date('Ymd') . str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
+                $model->order_number = 'OS'.date('Ymd').str_pad($nextNumber, 4, '0', STR_PAD_LEFT);
             }
 
             if (empty($model->status)) {
                 $model->status = self::STATUS_CREATED;
             }
         });
-    }
-
-    // No User model, adicione:
-
-    public function isTechnical()
-    {
-        return $this->user_type === 'technical' ||
-            $this->hasRole('technical') ||
-            $this->hasRole('tecnico');
     }
 
     public function products()
