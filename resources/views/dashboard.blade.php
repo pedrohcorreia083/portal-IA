@@ -32,6 +32,23 @@
             color: color-mix(in srgb, var(--brand-warning) 68%, var(--ink));
         }
 
+        .dashboard-product-ranking {
+            max-height: 22rem;
+            overflow-y: auto;
+        }
+
+        .dashboard-product-ranking:focus-visible {
+            outline-offset: -2px;
+        }
+
+        .dashboard-product-ranking .progress {
+            height: 8px;
+        }
+
+        .dashboard-product-ranking .progress-bar {
+            min-width: 2px;
+        }
+
         #registrationsChart {
             color: transparent;
             color: color-mix(in srgb, var(--brand-taupe) 22%, transparent);
@@ -84,18 +101,21 @@
                 </div>
             </div>
             <p id="dashboard-date-note" class="small text-muted mt-2 mb-0">
-                O período considera quando a OS foi cadastrada no sistema, no horário de Brasília.
+                {{ $hasPeriod
+                    ? 'O período considera quando a OS foi cadastrada no sistema, no horário de Brasília.'
+                    : 'Exibindo os totais gerais. Use as datas para consultar um período específico.' }}
             </p>
         </div>
     </form>
 
-@if ($hasPeriod)
     @if ($stats['total_os'] === 0)
-        <p class="alert alert-info" role="status">Nenhuma ordem de serviço foi cadastrada no período.</p>
+        <p class="alert alert-info" role="status">
+            {{ $hasPeriod ? 'Nenhuma ordem de serviço foi cadastrada no período.' : 'Nenhuma ordem de serviço foi cadastrada.' }}
+        </p>
     @endif
 
     @php
-        $registrationDates = ['registered_from' => $dates['date_from'], 'registered_to' => $dates['date_to']];
+        $registrationDates = $hasPeriod ? ['registered_from' => $dates['date_from'], 'registered_to' => $dates['date_to']] : [];
         $registrationChartTitle = $groupByDay ? 'Ordens cadastradas por dia' : 'Ordens cadastradas por mês';
         $warranty = $warrantyStats['warranty'] ?? 0;
         $paid = $warrantyStats['paid'] ?? 0;
@@ -223,36 +243,78 @@
         </div>
     </div>
 
-    <section class="card" aria-labelledby="top-incidents-title">
-        <div class="card-header">
-            <h3 id="top-incidents-title" class="card-title">10 maiores incidentes</h3>
+    <div class="row">
+        <div class="col-lg-6 mb-3">
+            <section class="card h-100 mb-0" aria-labelledby="top-incidents-title">
+                <div class="card-header">
+                    <h3 id="top-incidents-title" class="card-title">10 maiores incidentes</h3>
+                </div>
+                @if ($topIncidents->isNotEmpty())
+                    <div class="table-responsive">
+                        <table class="table mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Serviço solicitado</th>
+                                    <th scope="col" class="text-right">Peças</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($topIncidents as $incident)
+                                    <tr>
+                                        <td class="font-weight-bold">{{ $incident['label'] }}</td>
+                                        <td class="text-right">{{ number_format($incident['count'], 0, ',', '.') }}</td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                @else
+                    <div class="card-body">
+                        <p class="text-muted mb-0">Nenhum serviço solicitado.</p>
+                    </div>
+                @endif
+            </section>
         </div>
-        @if ($topIncidents->isNotEmpty())
-            <div class="table-responsive">
-                <table class="table mb-0">
-                    <thead>
-                        <tr>
-                            <th scope="col">Serviço solicitado</th>
-                            <th scope="col" class="text-right">Peças</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach ($topIncidents as $incident)
-                            <tr>
-                                <td class="font-weight-bold">{{ $incident['label'] }}</td>
-                                <td class="text-right">{{ number_format($incident['count'], 0, ',', '.') }}</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @else
-            <div class="card-body">
-                <p class="text-muted mb-0">Nenhum serviço solicitado no período.</p>
-            </div>
-        @endif
-    </section>
 
+        <div class="col-lg-6 mb-3">
+            <section class="card h-100 mb-0" aria-labelledby="identified-products-title">
+                <div class="card-header">
+                    <h3 id="identified-products-title" class="card-title">Produtos identificados</h3>
+                    <span class="badge badge-secondary ml-auto">
+                        {{ number_format($identifiedProductTotal, 0, ',', '.') }}
+                        {{ $identifiedProductTotal === 1 ? 'peça' : 'peças' }}
+                        {{ $hasPeriod ? 'no período' : 'no total' }}
+                    </span>
+                </div>
+                @if ($identifiedProducts->isNotEmpty())
+                    @php $largestProductCount = $identifiedProducts->first()['count']; @endphp
+                    <div class="card-body dashboard-product-ranking" tabindex="0" role="region"
+                         aria-label="Quantidade por produto identificado">
+                        <ul class="list-unstyled mb-0">
+                            @foreach ($identifiedProducts as $product)
+                                <li @class(['mb-3' => ! $loop->last])>
+                                    <div class="d-flex justify-content-between align-items-baseline mb-1 gap-3">
+                                        <span class="text-break">{{ $product['label'] }}</span>
+                                        <strong class="text-nowrap">
+                                            {{ number_format($product['count'], 0, ',', '.') }}
+                                            <span class="sr-only">{{ $product['count'] === 1 ? 'peça' : 'peças' }}</span>
+                                        </strong>
+                                    </div>
+                                    <div class="progress" aria-hidden="true">
+                                        <div class="progress-bar" style="width: {{ 100 * $product['count'] / $largestProductCount }}%"></div>
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
+                    </div>
+                @else
+                    <div class="card-body">
+                        <p class="text-muted mb-0">Nenhum produto identificado.</p>
+                    </div>
+                @endif
+            </section>
+        </div>
+    </div>
 
     @php
         $slaMeta = 7;
@@ -302,7 +364,7 @@
                             @endif
                         </dl>
                     @else
-                        <p class="text-muted mb-0">Sem atendimentos concluídos no período.</p>
+                        <p class="text-muted mb-0">Nenhum atendimento concluído.</p>
                     @endif
                 </div>
             </section>
@@ -344,19 +406,14 @@
                             @endforeach
                         </ul>
                     @else
-                        <p class="text-muted mb-0">Nenhuma filial tem atendimentos concluídos no período.</p>
+                        <p class="text-muted mb-0">Nenhuma filial tem atendimentos concluídos.</p>
                     @endif
                 </div>
             </section>
         </div>
     </div>
-
-@else
-    <p class="alert alert-info" role="status">Selecione a data inicial e a data final para consultar as ordens cadastradas.</p>
-@endif
 @endsection
 
-@if ($hasPeriod)
 @push('js')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -555,4 +612,3 @@
         });
     </script>
 @endpush
-@endif

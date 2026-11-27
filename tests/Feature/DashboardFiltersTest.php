@@ -23,16 +23,35 @@ class DashboardFiltersTest extends TestCase
         $this->actingAs(User::factory()->create());
     }
 
-    public function test_dashboard_waits_for_an_explicit_period_before_showing_results(): void
+    public function test_dashboard_shows_overall_totals_without_prefilling_the_period(): void
     {
         $this->createOrders();
+        $olderOrder = $this->order('2024-09-20', '2024-09-20 15:00:00', 'E-COMMERCE');
+        $olderOrder->items()->create(['identified_product_name' => 'Pulseira']);
+        $undatedOrder = $this->order('2026-11-03', '2026-11-03 15:00:00', 'SHOWROOM SP');
+        $undatedOrder->forceFill(['created_at' => null])->save();
 
         $this->get(route('dashboard'))
             ->assertOk()
             ->assertViewHas('dates', ['date_from' => null, 'date_to' => null])
             ->assertViewHas('hasPeriod', false)
-            ->assertSee('Selecione a data inicial e a data final para consultar as ordens cadastradas.')
-            ->assertDontSee('<canvas id="registrationsChart"', false);
+            ->assertSee('Exibindo os totais gerais.')
+            ->assertSee('<canvas id="registrationsChart"', false)
+            ->assertSee(route('service-orders.index', ['status' => 'created']))
+            ->assertSee(route('service-orders.index', ['status' => 'completed']))
+            ->assertViewHas('stats', [
+                'total_os' => 6,
+                'os_pending' => 4,
+                'os_completed' => 2,
+                'warranty_rate' => 33.3,
+                'avg_ticket' => 340,
+            ])
+            ->assertViewHas('origins', fn (Collection $origins) => $origins->values()->all() === [2, 1, 1, 1, 1])
+            ->assertViewHas('warrantyStats', ['warranty' => 1, 'paid' => 2, 'pending_analysis' => 4])
+            ->assertViewHas('identifiedProductTotal', 1)
+            ->assertViewHas('registrationSeries', fn (Collection $series) => $series->first() === ['label' => '09/2024', 'count' => 1]
+                && $series->last() === ['label' => '11/2026', 'count' => 2]
+                && $series->sum('count') === 5);
     }
 
     public function test_one_registration_period_applies_to_every_dashboard_indicator(): void
@@ -77,6 +96,46 @@ class DashboardFiltersTest extends TestCase
             ->assertViewHas('stats', fn (array $stats) => $stats['total_os'] === 2 && $stats['os_pending'] === 1)
             ->assertViewHas('warrantyStats', ['warranty' => 1, 'paid' => 1, 'pending_analysis' => 2])
             ->assertViewHas('topIncidents', fn (Collection $incidents) => $incidents->keys()->all() === ['S', 'F']);
+    }
+
+    public function test_identified_products_are_ranked_and_counted_with_the_dashboard_period(): void
+    {
+        $selectedOrder = $this->order('2026-11-10', '2026-11-14 05:00:00', 'SHOWROOM SP');
+        $otherOrder = $this->order('2026-11-14', '2026-11-15 03:00:00', 'EVENTOS');
+
+        foreach (['Anel', ' Colar ', 'Colar', 'Brinco', 'Brinco', null, '', " \t "] as $name) {
+            $selectedOrder->items()->create(['identified_product_name' => $name, 'services' => ['F']]);
+        }
+        foreach (['Broche', 'Broche', 'Broche', 'Broche', 'Anel', 'Brinco'] as $name) {
+            $otherOrder->items()->create(['identified_product_name' => $name, 'services' => ['B']]);
+        }
+
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('10 maiores incidentes')
+            ->assertSee('Produtos identificados')
+            ->assertViewHas('identifiedProductTotal', 11)
+            ->assertViewHas('identifiedProducts', fn (Collection $products) => $products->all() === [
+                ['label' => 'Broche', 'count' => 4],
+                ['label' => 'Brinco', 'count' => 3],
+                ['label' => 'Anel', 'count' => 2],
+                ['label' => 'Colar', 'count' => 2],
+            ]);
+
+        $this->get(route('dashboard', ['date_from' => '2026-11-14', 'date_to' => '2026-11-14']))
+            ->assertOk()
+            ->assertViewHas('identifiedProductTotal', 5)
+            ->assertViewHas('identifiedProducts', fn (Collection $products) => $products->all() === [
+                ['label' => 'Brinco', 'count' => 2],
+                ['label' => 'Colar', 'count' => 2],
+                ['label' => 'Anel', 'count' => 1],
+            ])
+            ->assertViewHas('topIncidents', fn (Collection $incidents) => $incidents->keys()->all() === ['F']);
+
+        $this->get(route('dashboard', ['date_from' => '2026-11-13', 'date_to' => '2026-11-13']))
+            ->assertOk()
+            ->assertViewHas('identifiedProductTotal', 0)
+            ->assertSee('Nenhum produto identificado.');
     }
 
     public function test_dashboard_and_linked_lists_include_the_full_registration_dates_in_brasilia(): void

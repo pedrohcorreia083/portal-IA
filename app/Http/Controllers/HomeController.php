@@ -28,15 +28,11 @@ class HomeController extends Controller
             'date_to' => $filters['date_to'] ?? null,
         ];
         $hasPeriod = isset($dates['date_from'], $dates['date_to']);
-        if (! $hasPeriod) {
-            return view('dashboard', compact('dates', 'hasPeriod'));
-        }
-
         $timezone = ServiceOrder::REGISTRATION_TIMEZONE;
         $today = CarbonImmutable::today($timezone);
-        $start = CarbonImmutable::parse($dates['date_from'], $timezone)->startOfDay();
-        $end = CarbonImmutable::parse($dates['date_to'], $timezone)->startOfDay();
-        $groupByDay = $start->diffInDays($end) < 31;
+        $start = $hasPeriod ? CarbonImmutable::parse($dates['date_from'], $timezone)->startOfDay() : $today->startOfMonth();
+        $end = $hasPeriod ? CarbonImmutable::parse($dates['date_to'], $timezone)->startOfDay() : $today;
+        $groupByDay = $hasPeriod && $start->diffInDays($end) < 31;
         $periodKeyFormat = $groupByDay ? 'Y-m-d' : 'Y-m';
         $periodLabelFormat = $groupByDay ? 'd/m' : 'm/Y';
 
@@ -45,7 +41,10 @@ class HomeController extends Controller
         $orders = ServiceOrder::query()
             ->registeredDuring($dates['date_from'], $dates['date_to'])
             ->select(['id', 'order_date', 'created_at', 'origin', 'status'])
-            ->with(['items:id,service_order_id,services,is_guarantee,repair_price', 'items.technicalSheet:'.$sheetColumns])
+            ->with([
+                'items:id,service_order_id,is_guarantee,repair_price,services,identified_product_name',
+                'items.technicalSheet:'.$sheetColumns,
+            ])
             ->lazyById(500);
 
         $services = ServiceOrderItem::SERVICES;
@@ -53,6 +52,7 @@ class HomeController extends Controller
         $registrationCounts = [];
         $originCounts = [];
         $serviceCounts = array_fill_keys(array_keys($services), 0);
+        $productCounts = [];
         $warrantyStats = ['warranty' => 0, 'paid' => 0, 'pending_analysis' => 0];
         $completedItems = 0;
         $warrantyItems = 0;
@@ -63,11 +63,19 @@ class HomeController extends Controller
         foreach ($orders as $order) {
             $orderCounts[$order->status] = ($orderCounts[$order->status] ?? 0) + 1;
             $originCounts[$order->origin] = ($originCounts[$order->origin] ?? 0) + 1;
-            $periodKey = $order->created_at->setTimezone($timezone)->format($periodKeyFormat);
-            $registrationCounts[$periodKey] = ($registrationCounts[$periodKey] ?? 0) + 1;
+            $registeredAt = $order->created_at;
+            if ($registeredAt !== null) {
+                $periodKey = $registeredAt->setTimezone($timezone)->format($periodKeyFormat);
+                $registrationCounts[$periodKey] = ($registrationCounts[$periodKey] ?? 0) + 1;
+            }
 
             foreach ($order->items as $item) {
-                // The accessor also reads older items whose service array was encoded twice.
+                $name = trim((string) $item->identified_product_name);
+                if ($name !== '') {
+                    $productCounts[$name] = ($productCounts[$name] ?? 0) + 1;
+                }
+
+                // The accessor also reads items whose service array was encoded twice.
                 $requestedServices = array_intersect($services, $item->services_names);
                 foreach (array_keys($requestedServices) as $code) {
                     $serviceCounts[$code]++;
@@ -124,6 +132,12 @@ class HomeController extends Controller
             'avg_ticket' => $pricedRepairs ? $repairTotal / $pricedRepairs : 0,
         ];
 
+        if (! $hasPeriod && $registrationCounts !== []) {
+            $months = array_keys($registrationCounts);
+            $start = CarbonImmutable::parse(min($months).'-01', $timezone)->startOfDay();
+            $end = max($today, CarbonImmutable::parse(max($months).'-01', $timezone)->startOfDay());
+        }
+
         $registrationSeries = collect();
         $firstPeriod = $groupByDay ? $start : $start->startOfMonth();
         for ($period = $firstPeriod; $period <= $end; $period = $groupByDay ? $period->addDay() : $period->addMonth()) {
@@ -146,12 +160,6 @@ class HomeController extends Controller
             'EVENTOS' => 'Eventos',
         ])->mapWithKeys(fn ($label, $origin) => [$label => $originCounts[$origin] ?? 0]);
 
-        $topIncidents = collect($serviceCounts)
-            ->filter()
-            ->sortDesc()
-            ->take(10)
-            ->map(fn ($count, $code) => ['label' => $services[$code], 'count' => $count]);
-
         $avgDaysByBranch = collect($branches)
             ->map(fn ($branch) => (object) [...$branch, 'avg_days' => $branch['total_days'] / $branch['total_completed']])
             ->sortBy('avg_days')
@@ -170,7 +178,15 @@ class HomeController extends Controller
             'slowest' => $avgDaysByBranch->last(),
             'dates' => $dates,
             'hasPeriod' => $hasPeriod,
-            'topIncidents' => $topIncidents,
+            'identifiedProductTotal' => array_sum($productCounts),
+            'identifiedProducts' => collect($productCounts)->sortKeys(SORT_NATURAL | SORT_FLAG_CASE)
+                ->sortDesc()
+                ->map(fn ($count, $name) => ['label' => (string) $name, 'count' => $count])
+                ->values(),
+            'topIncidents' => collect($serviceCounts)->filter()
+                ->sortDesc()
+                ->take(10)
+                ->map(fn ($count, $code) => ['label' => $services[$code], 'count' => $count]),
         ]);
     }
 
