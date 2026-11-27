@@ -9,8 +9,10 @@ use App\Models\ServiceOrderItem;
 use App\Services\TechnicalSheetWorkflow;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -371,14 +373,45 @@ class ServiceOrderController extends Controller
 
     public function destroy(ServiceOrder $serviceOrder)
     {
-        abort_unless(auth()->user()->isAdmin(), 403);
-        if ($serviceOrder->items()->whereHas('technicalSheet')->exists()) {
+        $this->checkAdmin();
+
+        $imagePaths = DB::transaction(function () use ($serviceOrder) {
+            $order = ServiceOrder::query()->lockForUpdate()->findOrFail($serviceOrder->getKey());
+
+            if ($order->items()->whereHas('technicalSheet')->exists()) {
+                return null;
+            }
+
+            $imagePaths = $order->items()->lockForUpdate()->pluck('product_image')
+                ->filter(fn ($path) => is_string($path) && preg_match('~\Aservice-order-items/[a-zA-Z0-9_-][a-zA-Z0-9_.-]*\z~', $path))
+                ->unique();
+
+            $order->delete();
+
+            return $imagePaths;
+        });
+
+        if ($imagePaths === null) {
             return back()->with('error', 'Esta OS possui histórico técnico e não pode ser excluída.');
         }
-        $serviceOrder->delete();
 
-        return redirect()->route('service-orders.index')
-            ->with('success', 'Ordem de Serviço excluída com sucesso!');
+        $redirect = redirect()->route('service-orders.index');
+
+        if ($imagePaths->isNotEmpty()) {
+            $sharedPaths = ServiceOrderItem::whereIn('product_image', $imagePaths)->pluck('product_image');
+            $unusedPaths = $imagePaths->diff($sharedPaths);
+
+            if ($unusedPaths->isNotEmpty() && ! Storage::disk('public')->delete($unusedPaths->all())) {
+                Log::warning('Não foi possível remover todas as fotos da OS excluída.', [
+                    'service_order_id' => $serviceOrder->getKey(),
+                    'image_paths' => $unusedPaths->values()->all(),
+                ]);
+
+                return $redirect->with('warning', 'Ordem de Serviço excluída. Algumas fotos não puderam ser removidas.');
+            }
+        }
+
+        return $redirect->with('success', 'Ordem de Serviço excluída com sucesso!');
     }
 
     public function updateStatus(Request $request, ServiceOrder $serviceOrder)

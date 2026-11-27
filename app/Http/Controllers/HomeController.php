@@ -4,156 +4,153 @@ namespace App\Http\Controllers;
 
 use App\Models\ServiceOrder;
 use App\Models\ServiceOrderItem;
+use Carbon\CarbonImmutable;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
-use Illuminate\Support\Facades\DB;
 
 class HomeController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $services = ServiceOrderItem::SERVICES;
+        $filters = $request->validate([
+            'date_from' => ['bail', 'nullable', 'required_with:date_to', 'date_format:Y-m-d'],
+            'date_to' => ['bail', 'nullable', 'required_with:date_from', 'date_format:Y-m-d', 'after_or_equal:date_from'],
+        ], [
+            'date_from.required_with' => 'Informe a data inicial.',
+            'date_from.date_format' => 'Informe uma data inicial válida.',
+            'date_to.required_with' => 'Informe a data final.',
+            'date_to.date_format' => 'Informe uma data final válida.',
+            'date_to.after_or_equal' => 'A data final deve ser igual ou posterior à data inicial.',
+        ]);
 
-        // ─── Tempo médio de atendimento por filial ──────────────────────────────
-        $periodDays = request()->integer('period', 90);
-        $since = now()->subDays($periodDays);
+        $today = CarbonImmutable::today();
+        $start = isset($filters['date_from']) ? CarbonImmutable::parse($filters['date_from']) : $today->subMonths(11)->startOfMonth();
+        $end = isset($filters['date_to']) ? CarbonImmutable::parse($filters['date_to']) : $today;
+        $dates = ['date_from' => $start->toDateString(), 'date_to' => $end->toDateString()];
 
         $hasCompletedAt = Schema::hasColumn('technical_sheets', 'completed_at');
-        $dateColumn = $hasCompletedAt ? 'ts.completed_at' : 'ts.updated_at';
+        $sheetColumns = 'id,service_order_item_id,status,updated_at'.($hasCompletedAt ? ',completed_at' : '');
+        $orders = ServiceOrder::query()
+            ->whereDate('order_date', '>=', $dates['date_from'])
+            ->whereDate('order_date', '<=', $dates['date_to'])
+            ->select(['id', 'order_date', 'origin', 'status'])
+            ->with(['items:id,service_order_id,services,is_guarantee,repair_price', 'items.technicalSheet:'.$sheetColumns])
+            ->lazyById(500);
 
-        $query = DB::table('service_order_items as soi')
-            ->join('service_orders as so', 'so.id', '=', 'soi.service_order_id')
-            // 👇 AQUI ESTÁ A CORREÇÃO: Invertemos a ordem do JOIN
-            ->join('technical_sheets as ts', 'ts.service_order_item_id', '=', 'soi.id')
-            ->whereNotNull($dateColumn)
-            ->where($dateColumn, '>=', $since);
+        $orderCounts = [];
+        $monthlyCounts = [];
+        $originCounts = [];
+        $serviceCounts = array_fill_keys(array_keys($services), 0);
+        $warrantyStats = ['warranty' => 0, 'paid' => 0, 'pending_analysis' => 0];
+        $completedItems = 0;
+        $warrantyItems = 0;
+        $repairTotal = 0.0;
+        $pricedRepairs = 0;
+        $branches = [];
 
-        if (!$hasCompletedAt) {
-            $query->whereIn('ts.status', ['completed', 'sent_to_store', 'delivered']);
+        foreach ($orders as $order) {
+            $orderCounts[$order->status] = ($orderCounts[$order->status] ?? 0) + 1;
+            $originCounts[$order->origin] = ($originCounts[$order->origin] ?? 0) + 1;
+            $month = $order->order_date->format('Y-m');
+            $monthlyCounts[$month] = ($monthlyCounts[$month] ?? 0) + 1;
+
+            foreach ($order->items as $item) {
+                // The accessor also reads older items whose service array was encoded twice.
+                $requestedServices = array_intersect($services, $item->services_names);
+                foreach (array_keys($requestedServices) as $code) {
+                    $serviceCounts[$code]++;
+                }
+
+                $warrantyStats[match ($item->is_guarantee) {
+                    true => 'warranty',
+                    false => 'paid',
+                    null => 'pending_analysis',
+                }]++;
+
+                if ($order->status === ServiceOrder::STATUS_COMPLETED) {
+                    $completedItems++;
+                    $warrantyItems += (int) ($item->is_guarantee === true);
+
+                    if ($item->is_guarantee === false && $item->repair_price !== null) {
+                        $repairTotal += (float) $item->repair_price;
+                        $pricedRepairs++;
+                    }
+                }
+
+                $sheet = $item->technicalSheet;
+                if ($sheet === null || (! $hasCompletedAt && ! in_array($sheet->status, ['completed', 'sent_to_store', 'delivered'], true))) {
+                    continue;
+                }
+
+                $completedAt = $hasCompletedAt ? $sheet->completed_at : $sheet->updated_at;
+                if ($completedAt === null) {
+                    continue;
+                }
+
+                $days = (int) $order->order_date->diffInDays(CarbonImmutable::parse($completedAt)->startOfDay());
+                $origin = $order->origin;
+                $branch = $branches[$origin] ?? [
+                    'origin' => $origin,
+                    'total_completed' => 0,
+                    'total_days' => 0,
+                    'min_days' => $days,
+                    'max_days' => $days,
+                ];
+                $branch['total_completed']++;
+                $branch['total_days'] += $days;
+                $branch['min_days'] = min($branch['min_days'], $days);
+                $branch['max_days'] = max($branch['max_days'], $days);
+                $branches[$origin] = $branch;
+            }
         }
 
-        $avgDaysByBranch = $query
-            ->select(
-                'so.origin',
-                DB::raw("AVG(DATEDIFF({$dateColumn}, COALESCE(so.order_date, soi.created_at))) as avg_days"),
-                DB::raw('COUNT(*) as total_completed'),
-                DB::raw("MIN(DATEDIFF({$dateColumn}, COALESCE(so.order_date, soi.created_at))) as min_days"),
-                DB::raw("MAX(DATEDIFF({$dateColumn}, COALESCE(so.order_date, soi.created_at))) as max_days")
-            )
-            ->groupBy('so.origin')
-            ->orderBy('avg_days')
-            ->get();
-
-        $avgDaysOverall = $avgDaysByBranch->sum(fn($r) => $r->avg_days * $r->total_completed)
-            / max($avgDaysByBranch->sum('total_completed'), 1);
-
-        $fastest = $avgDaysByBranch->sortBy('avg_days')->first();
-        $slowest = $avgDaysByBranch->sortByDesc('avg_days')->first();
-
-        // Stats básicos
-        $totalOs = ServiceOrder::count();
-        $osCreated = ServiceOrder::where('status', ServiceOrder::STATUS_CREATED)->count();
-        $osUnderAnalysis = ServiceOrder::where('status', ServiceOrder::STATUS_UNDER_ANALYSIS)->count();
-        $osApproved = ServiceOrder::where('status', ServiceOrder::STATUS_APPROVED)->count();
-        $osInProgress = $osUnderAnalysis + $osApproved;
-        $osCompleted = ServiceOrder::where('status', ServiceOrder::STATUS_COMPLETED)->count();
-        $osCancelled = ServiceOrder::where('status', ServiceOrder::STATUS_CANCELLED)->count();
-
-        // Finalizadas no mês
-        $osCompletedMonth = ServiceOrder::where('status', ServiceOrder::STATUS_COMPLETED)
-            ->whereMonth('updated_at', now()->month)
-            ->whereYear('updated_at', now()->year)
-            ->count();
-
-        // Taxa de garantia (itens garantia vs total de itens concluídos)
-        $totalCompletedItems = ServiceOrderItem::whereHas('serviceOrder', function ($query) {
-            $query->where('status', ServiceOrder::STATUS_COMPLETED);
-        })->count();
-
-        $guaranteeItems = ServiceOrderItem::whereHas('serviceOrder', function ($query) {
-            $query->where('status', ServiceOrder::STATUS_COMPLETED);
-        })->where('is_guarantee', true)->count();
-
-        $warrantyRate = $totalCompletedItems > 0
-            ? round(($guaranteeItems / $totalCompletedItems) * 100, 1)
-            : 0;
-
-        // Ticket médio de reparo (apenas itens pagos de OS concluídas)
-        $avgTicket = ServiceOrderItem::whereHas('serviceOrder', function ($query) {
-            $query->where('status', ServiceOrder::STATUS_COMPLETED);
-        })->where('is_guarantee', false)
-            ->avg('repair_price') ?? 0;
-
         $stats = [
-            'total_os' => $totalOs,
-            'os_pending' => $osCreated,           // Pendentes = Criadas
-            'os_in_progress' => $osInProgress,     // Em andamento = Análise + Aprovadas
-            'os_completed_month' => $osCompletedMonth,
-            'warranty_rate' => $warrantyRate,
-            'avg_ticket' => $avgTicket,
-            // Para gráfico de pizza
-            'os_analysis' => $osUnderAnalysis,
-            'os_repair' => $osApproved,
-            'os_completed' => $osCompleted,
-            'os_cancelled' => $osCancelled,
+            'total_os' => array_sum($orderCounts),
+            'os_pending' => $orderCounts[ServiceOrder::STATUS_CREATED] ?? 0,
+            'os_completed' => $orderCounts[ServiceOrder::STATUS_COMPLETED] ?? 0,
+            'warranty_rate' => $completedItems ? round($warrantyItems / $completedItems * 100, 1) : 0,
+            'avg_ticket' => $pricedRepairs ? $repairTotal / $pricedRepairs : 0,
         ];
 
-        // OS por mês (últimos 12 meses).
-        // Agregação em PHP para não depender de funções específicas de um SGBD
-        // (DATE_FORMAT é exclusivo do MySQL e quebrava em SQLite/Postgres).
-        // Retorna arrays: a view acessa os itens com colchetes.
-        $osByMonth = ServiceOrder::where('created_at', '>=', now()->subMonths(12)->startOfMonth())
-            ->get(['created_at'])
-            ->groupBy(fn($order) => $order->created_at->format('Y-m'))
-            ->sortKeys()
-            ->map(fn($group, $month) => [
-                'month' => \Carbon\Carbon::createFromFormat('Y-m', $month)->format('M/Y'),
-                'month_order' => $month,
-                'count' => $group->count(),
-            ])
+        $osByMonth = collect();
+        for ($month = $start->startOfMonth(); $month <= $end; $month = $month->addMonth()) {
+            $osByMonth->push([
+                'month' => $month->format('m/Y'),
+                'count' => $monthlyCounts[$month->format('Y-m')] ?? 0,
+            ]);
+        }
+
+        $origins = collect([
+            'SHOWROOM SP' => 'Showroom SP',
+            'SHOWROOM LIMEIRA' => 'Showroom Limeira',
+            'SHOWROOM ON-LINE' => 'On-line',
+            'E-COMMERCE' => 'E-commerce',
+            'EVENTOS' => 'Eventos',
+        ])->mapWithKeys(fn ($label, $origin) => [$label => $originCounts[$origin] ?? 0]);
+
+        $topIncidents = collect($serviceCounts)
+            ->filter()
+            ->sortDesc()
+            ->take(10)
+            ->map(fn ($count, $code) => ['label' => $services[$code], 'count' => $count]);
+
+        $avgDaysByBranch = collect($branches)
+            ->map(fn ($branch) => (object) [...$branch, 'avg_days' => $branch['total_days'] / $branch['total_completed']])
+            ->sortBy('avg_days')
             ->values();
 
-        // Origem das OS
-        $origins = [
-            'showroom_sp' => ServiceOrder::where('origin', 'SHOWROOM SP')->count(),
-            'limeira' => ServiceOrder::where('origin', 'SHOWROOM LIMEIRA')->count(),
-            'online' => ServiceOrder::where('origin', 'SHOWROOM ON-LINE')->count(),
-            'ecommerce' => ServiceOrder::where('origin', 'E-COMMERCE')->count(),
-            'events' => ServiceOrder::where('origin', 'EVENTOS')->count(),
-        ];
-
-        // Top consultores
-        $topConsultants = ServiceOrder::select('consultant_name', DB::raw('COUNT(*) as total_os'))
-            ->whereNotNull('consultant_name')
-            ->where('consultant_name', '!=', '')
-            ->groupBy('consultant_name')
-            ->orderByDesc('total_os')
-            ->limit(10)
-            ->get();
-
-        // Garantia vs Pago vs Pendente (baseado nos itens)
-        $warrantyStats = [
-            'warranty' => ServiceOrderItem::where('is_guarantee', true)->count(),
-            'paid' => ServiceOrderItem::where('is_guarantee', false)->count(),
-            'pending_analysis' => ServiceOrderItem::whereNull('is_guarantee')->count(),
-        ];
-
-        // OS recentes (para manter a lista rápida)
-        $recentOs = ServiceOrder::withCount('items')
-            ->latest()
-            ->take(5)
-            ->get();
-
-        return view('dashboard', compact(
-            'stats',
-            'osByMonth',
-            'origins',
-            'warrantyStats',
-            'avgDaysByBranch',
-            'avgDaysOverall',
-            'fastest',
-            'slowest',
-            'periodDays',
-            'recentOs',
-            'topConsultants',
-        ));
+        return view('dashboard', [
+            'stats' => $stats,
+            'osByMonth' => $osByMonth,
+            'origins' => $origins,
+            'warrantyStats' => $warrantyStats,
+            'avgDaysByBranch' => $avgDaysByBranch,
+            'avgDaysOverall' => array_sum(array_column($branches, 'total_days')) / max(array_sum(array_column($branches, 'total_completed')), 1),
+            'fastest' => $avgDaysByBranch->first(),
+            'slowest' => $avgDaysByBranch->last(),
+            'dates' => $dates,
+            'topIncidents' => $topIncidents,
+        ]);
     }
 }

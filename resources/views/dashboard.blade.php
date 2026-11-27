@@ -2,16 +2,95 @@
 
 @section('title', 'Visão geral')
 
+@push('css')
+    <style>
+        .dashboard-date {
+            flex: 1 1 145px;
+        }
+
+        .dashboard-filter-actions .btn {
+            min-height: 38px;
+        }
+
+        .dashboard-kpis {
+            --stat-tint: color-mix(in srgb, var(--brand-taupe) 7%, transparent);
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .dashboard-attendance-value {
+            font-family: var(--font-display);
+            font-size: 42px;
+            letter-spacing: -1px;
+            line-height: 1;
+        }
+
+        .dashboard-attendance-row {
+            border-top: 1px solid var(--line-soft);
+        }
+
+        .dashboard-sla .badge-warning {
+            color: color-mix(in srgb, var(--brand-warning) 68%, var(--ink));
+        }
+
+        #osByMonthChart {
+            color: transparent;
+            color: color-mix(in srgb, var(--brand-taupe) 22%, transparent);
+        }
+
+        @media (min-width: 576px) {
+            .dashboard-date {
+                flex: 0 1 200px;
+            }
+
+            .dashboard-kpis {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
+        @media (min-width: 1200px) {
+            .dashboard-kpis {
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+            }
+        }
+    </style>
+@endpush
+
 @section('content-header')
     <div class="eyebrow">Painel operacional</div>
     <h1 class="page-title">Visão geral</h1>
     <p class="page-subtitle">
         Acompanhamento das ordens de serviço, garantias e faturamento.
-        <span class="text-muted">· {{ now()->format('d/m/Y') }}</span>
     </p>
 @endsection
 
 @section('content')
+    <form method="GET" action="{{ route('dashboard') }}" class="card" aria-label="Período do dashboard"
+          aria-describedby="dashboard-date-note">
+        <div class="card-body">
+            <div class="filter-bar">
+                <div class="form-group dashboard-date">
+                    <label for="dashboard-date-from">Data inicial</label>
+                    <input type="date" id="dashboard-date-from" name="date_from" class="form-control"
+                           value="{{ $dates['date_from'] }}" required>
+                </div>
+                <div class="form-group dashboard-date">
+                    <label for="dashboard-date-to">Data final</label>
+                    <input type="date" id="dashboard-date-to" name="date_to" class="form-control"
+                           value="{{ $dates['date_to'] }}" required>
+                </div>
+                <div class="dashboard-filter-actions d-flex">
+                    <button type="submit" class="btn btn-primary mr-2">Filtrar</button>
+                    <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary">Limpar</a>
+                </div>
+            </div>
+            <p id="dashboard-date-note" class="small text-muted mt-2 mb-0">O período considera a data de abertura da OS.</p>
+        </div>
+    </form>
+
+    @if ($stats['total_os'] === 0)
+        <p class="alert alert-info" role="status">Nenhuma ordem de serviço foi aberta no período.</p>
+    @endif
+
     @php
         $warranty = $warrantyStats['warranty'] ?? 0;
         $paid = $warrantyStats['paid'] ?? 0;
@@ -38,46 +117,44 @@
     @endphp
 
     {{-- ============ KPIs ============ --}}
-    <div class="stat-grid">
+    <div class="stat-grid dashboard-kpis">
         <div class="stat-card">
             <span class="stat-label">Ordens de serviço</span>
             <div class="stat-value">{{ number_format($stats['total_os'], 0, ',', '.') }}</div>
             <div class="stat-foot">
                 @if ($trend)
-                    <span class="stat-delta {{ $trend['up'] ? 'up' : 'down' }}">
+                    <span id="dash-kpi-trend" class="stat-delta {{ $trend['up'] ? 'up' : 'down' }}">
                         <i class="fas fa-arrow-{{ $trend['up'] ? 'up' : 'down' }}"></i>
                         {{ abs($trend['value']) }}%
                     </span>
                     <span>vs. mês anterior</span>
-                @else
-                    <span>Base total do sistema</span>
                 @endif
             </div>
             <i class="fas fa-file-invoice stat-icon"></i>
         </div>
 
-        <div class="stat-card" style="--stat-tint: rgba(184,137,74,.08)">
+        <div class="stat-card" style="--stat-tint: color-mix(in srgb, var(--brand-warning) 8%, transparent)">
             <span class="stat-label">Aguardando triagem</span>
             <div class="stat-value">{{ number_format($stats['os_pending'], 0, ',', '.') }}</div>
             <div class="stat-foot">
-                <a href="{{ route('service-orders.index', ['status' => 'created']) }}">Ver pendentes</a>
+                <a href="{{ route('service-orders.index', $dates + ['status' => 'created']) }}">Ver pendentes</a>
             </div>
             <i class="fas fa-hourglass-half stat-icon"></i>
         </div>
 
-        <div class="stat-card" style="--stat-tint: rgba(79,122,91,.08)">
-            <span class="stat-label">Concluídas no mês</span>
-            <div class="stat-value">{{ number_format($stats['os_completed_month'], 0, ',', '.') }}</div>
+        <div class="stat-card" style="--stat-tint: color-mix(in srgb, var(--brand-success) 8%, transparent)">
+            <span class="stat-label">OS concluídas</span>
+            <div class="stat-value">{{ number_format($stats['os_completed'], 0, ',', '.') }}</div>
             <div class="stat-foot">
-                <a href="{{ route('service-orders.index', ['status' => 'completed']) }}">Ver concluídas</a>
+                <a href="{{ route('service-orders.index', $dates + ['status' => 'completed']) }}">Ver concluídas</a>
             </div>
             <i class="fas fa-check-double stat-icon"></i>
         </div>
 
-        <div class="stat-card" style="--stat-tint: rgba(107,124,140,.08)">
+        <div class="stat-card" style="--stat-tint: color-mix(in srgb, var(--brand-info) 8%, transparent)">
             <span class="stat-label">Taxa de garantia</span>
             <div class="stat-value">{{ $stats['warranty_rate'] }}<small>%</small></div>
-            <div class="stat-foot">
+            <div class="stat-foot flex-wrap pr-3">
                 <span>Ticket médio de reparo</span>
                 <strong style="color:var(--ink);font-weight:600">
                     R$ {{ number_format((float) $stats['avg_ticket'], 2, ',', '.') }}
@@ -89,11 +166,10 @@
 
     {{-- ============ VOLUMETRIA + CANAIS ============ --}}
     <div class="row">
-        <div class="col-lg-8">
-            <div class="card h-100">
+        <div class="col-lg-8 mb-3">
+            <div class="card h-100 mb-0">
                 <div class="card-header">
-                    <h3 class="card-title">Volumetria de ordens · últimos 12 meses</h3>
-                    <span class="badge badge-light">Linha temporal</span>
+                    <h3 class="card-title">Volumetria de ordens por mês</h3>
                 </div>
                 <div class="card-body" style="height:320px">
                     <canvas id="osByMonthChart" aria-label="Volumetria de ordens por mês" role="img"></canvas>
@@ -101,8 +177,8 @@
             </div>
         </div>
 
-        <div class="col-lg-4">
-            <div class="card h-100">
+        <div class="col-lg-4 mb-3">
+            <div class="card h-100 mb-0">
                 <div class="card-header">
                     <h3 class="card-title">Canais de origem</h3>
                 </div>
@@ -115,11 +191,10 @@
 
     {{-- ============ COMPOSIÇÃO + DISTRIBUIÇÃO ============ --}}
     <div class="row">
-        <div class="col-lg-7">
-            <div class="card h-100">
+        <div class="col-lg-7 mb-3">
+            <div class="card h-100 mb-0">
                 <div class="card-header">
                     <h3 class="card-title">Composição dos itens</h3>
-                    <span class="badge badge-light">Garantia vs. faturamento</span>
                 </div>
                 <div class="card-body" style="height:270px">
                     <canvas id="warrantyChart" aria-label="Composição financeira dos itens" role="img"></canvas>
@@ -127,8 +202,8 @@
             </div>
         </div>
 
-        <div class="col-lg-5">
-            <div class="card h-100">
+        <div class="col-lg-5 mb-3">
+            <div class="card h-100 mb-0">
                 <div class="card-header">
                     <h3 class="card-title">Distribuição</h3>
                 </div>
@@ -137,17 +212,17 @@
                         @php $pct = round(($row['value'] / $totalItems) * 100, 1); @endphp
                         <div class="mb-3">
                             <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="text-sm text-muted">{{ $row['label'] }}</span>
-                                <span class="text-sm font-weight-600" style="color: var({{ $row['token'] }})">
+                                <span>{{ $row['label'] }}</span>
+                                <strong>
                                     {{ number_format($row['value'], 0, ',', '.') }}
-                                </span>
+                                </strong>
                             </div>
                             <div class="progress">
                                 <div class="progress-bar" role="progressbar"
                                      style="width: {{ $pct }}%; background: var({{ $row['token'] }})"
                                      aria-valuenow="{{ $pct }}" aria-valuemin="0" aria-valuemax="100"></div>
                             </div>
-                            <small class="text-muted" style="font-size:10px">{{ $pct }}% do total</small>
+                            <small class="text-muted">{{ number_format($pct, 1, ',', '.') }}% do total</small>
                         </div>
                     @endforeach
                 </div>
@@ -155,216 +230,133 @@
         </div>
     </div>
 
-    {{-- ============ RECENTES + CONSULTORAS ============ --}}
-    <div class="row">
-        <div class="col-lg-8">
-            <div class="card h-100">
-                <div class="card-header">
-                    <h3 class="card-title">Últimas ordens abertas</h3>
-                    <a href="{{ route('service-orders.index') }}" class="btn btn-sm btn-outline-secondary">
-                        Ver todas <i class="fas fa-arrow-right"></i>
-                    </a>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>OS</th>
-                                    <th>Cliente</th>
-                                    <th>Origem</th>
-                                    <th>Peças</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse ($recentOs as $order)
-                                    <tr>
-                                        <td>
-                                            <a href="{{ route('service-orders.show', $order) }}" class="font-weight-600">
-                                                {{ $order->order_number }}
-                                            </a>
-                                        </td>
-                                        <td>{{ $order->client_name }}</td>
-                                        <td class="text-muted">{{ $order->origin }}</td>
-                                        <td>{{ $order->items_count }}</td>
-                                        <td>
-                                            <span class="badge {{ $order->status_badge_class }}">
-                                                {{ $order->status_label }}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="5">
-                                            <div class="empty-state">
-                                                <i class="fas fa-inbox"></i>
-                                                <strong>Nenhuma ordem registrada</strong>
-                                                <p>As ordens de serviço criadas aparecerão aqui.</p>
-                                                <a href="{{ route('service-orders.create') }}" class="btn btn-primary btn-sm">
-                                                    Criar primeira OS
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
+    <section class="card" aria-labelledby="top-incidents-title">
+        <div class="card-header">
+            <h3 id="top-incidents-title" class="card-title">10 maiores incidentes</h3>
         </div>
+        @if ($topIncidents->isNotEmpty())
+            <div class="table-responsive">
+                <table class="table mb-0">
+                    <thead>
+                        <tr>
+                            <th scope="col">Serviço solicitado</th>
+                            <th scope="col" class="text-right">Peças</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach ($topIncidents as $incident)
+                            <tr>
+                                <td class="font-weight-bold">{{ $incident['label'] }}</td>
+                                <td class="text-right">{{ number_format($incident['count'], 0, ',', '.') }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @else
+            <div class="card-body">
+                <p class="text-muted mb-0">Nenhum serviço solicitado no período.</p>
+            </div>
+        @endif
+    </section>
 
-        <div class="col-lg-4">
-            <div class="card h-100">
+
+    @php
+        $slaMeta = 7;
+        $slaAtencao = 14;
+        $slaFor = fn ($days) => match (true) {
+            $days <= $slaMeta => ['tone' => 'success', 'label' => 'Ótimo'],
+            $days <= $slaAtencao => ['tone' => 'warning', 'label' => 'Atenção'],
+            default => ['tone' => 'danger', 'label' => 'Crítico'],
+        };
+        $overallSla = $avgDaysByBranch->isNotEmpty() ? $slaFor($avgDaysOverall) : null;
+    @endphp
+
+    <div class="row dashboard-sla">
+        <div class="col-lg-4 mb-3">
+            <section class="card mb-0" aria-labelledby="attendance-title">
                 <div class="card-header">
-                    <h3 class="card-title">Consultoras com mais OS</h3>
+                    <h3 id="attendance-title" class="card-title">Tempo médio de atendimento</h3>
                 </div>
                 <div class="card-body">
-                    @php $maxConsultant = $topConsultants->max('total_os') ?: 1; @endphp
-
-                    @forelse ($topConsultants as $consultant)
+                    @if ($overallSla)
+                        <div class="d-flex align-items-baseline mb-2">
+                            <span class="dashboard-attendance-value" style="color: var(--brand-{{ $overallSla['tone'] }})">
+                                {{ number_format($avgDaysOverall, 1, ',', '.') }}
+                            </span>
+                            <span class="ml-2 text-muted font-weight-bold">dias</span>
+                        </div>
                         <div class="mb-3">
-                            <div class="d-flex justify-content-between align-items-center mb-1">
-                                <span class="text-sm">{{ $consultant->consultant_name }}</span>
-                                <span class="text-sm text-muted">{{ $consultant->total_os }}</span>
-                            </div>
-                            <div class="progress">
-                                <div class="progress-bar"
-                                     style="width: {{ round(($consultant->total_os / $maxConsultant) * 100) }}%"></div>
-                            </div>
+                            <span class="badge badge-{{ $overallSla['tone'] }}">{{ $overallSla['label'] }}</span>
+                            <small class="text-muted ml-1">Meta de até {{ $slaMeta }} dias</small>
                         </div>
-                    @empty
-                        <p class="text-muted text-sm mb-0">Sem dados suficientes.</p>
-                    @endforelse
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-{{-- LINHA 4 — Eficiência por filial ─────────────────────────────────── --}}
-@php
-    // Meta de SLA em dias — ajuste conforme a operação
-    $slaMeta    = 7;
-    $slaAtencao = 14;
-
-    $slaFor = function ($days) use ($slaMeta, $slaAtencao) {
-        if ($days <= $slaMeta)    return ['class' => 'sla-good', 'label' => 'Ótimo',   'color' => '#4F7A5B']; // var(--brand-success)
-        if ($days <= $slaAtencao) return ['class' => 'sla-warn', 'label' => 'Atenção', 'color' => '#B8894A']; // var(--brand-warning)
-        return ['class' => 'sla-bad', 'label' => 'Crítico', 'color' => '#B45353']; // var(--brand-danger)
-    };
-
-    $overallSla = $slaFor($avgDaysOverall);
-@endphp
-
-<div class="row">
-    {{-- KPI + Insights --}}
-    <div class="col-lg-4 mb-3">
-        <div class="card h-100">
-            <div class="card-header">
-                <h3 class="card-title">
-                    <span class="status-dot mr-2" style="background: var(--brand-taupe)"></span>
-                    Tempo médio de atendimento
-                </h3>
-                <span class="badge badge-light">
-                    últimos {{ $periodDays }} dias
-                </span>
-            </div>
-            <div class="card-body d-flex flex-column">
-                <div class="d-flex align-items-baseline mb-1">
-                    <span class="stat-value" style="color: {{ $overallSla['color'] }}; font-size: 42px; font-family: var(--font-display); letter-spacing: -1px; line-height: 1;">
-                        {{ number_format($avgDaysOverall, 1, ',', '.') }}
-                    </span>
-                    <span class="ml-2 text-muted font-weight-bold" style="font-size: 14px;">dias</span>
-                </div>
-                <div class="mb-3">
-                    <span class="branch-sla {{ $overallSla['class'] }}">{{ $overallSla['label'] }}</span>
-                    <small class="text-muted ml-2">meta: ≤ {{ $slaMeta }} dias</small>
-                </div>
-
-                <div class="mt-auto">
-                    @if ($fastest)
-                        <div class="d-flex justify-content-between align-items-center py-3" style="border-top: 1px solid var(--line-soft);">
-                            <small class="text-muted">
-                                <i class="fas fa-trophy text-warning mr-2"></i> Mais rápida
-                            </small>
-                            <div class="text-right">
-                                <div class="branch-name">{{ $fastest->origin }}</div>
-                                <small class="branch-meta">{{ number_format($fastest->avg_days, 1, ',', '.') }} dias</small>
+                        <dl class="mb-0">
+                            <div class="dashboard-attendance-row d-flex flex-wrap justify-content-between py-2">
+                                <dt class="small pr-2">Filial mais rápida</dt>
+                                <dd class="mb-0 ml-auto text-right">
+                                    <strong class="d-block">{{ $fastest->origin }}</strong>
+                                    <small class="text-muted">{{ number_format($fastest->avg_days, 1, ',', '.') }} dias</small>
+                                </dd>
                             </div>
-                        </div>
-                    @endif
-                    @if ($slowest && $slowest->origin !== $fastest->origin)
-                        <div class="d-flex justify-content-between align-items-center py-3" style="border-top: 1px solid var(--line-soft);">
-                            <small class="text-muted">
-                                <i class="fas fa-exclamation-triangle text-danger mr-2"></i> Atenção
-                            </small>
-                            <div class="text-right">
-                                <div class="branch-name">{{ $slowest->origin }}</div>
-                                <small class="branch-meta">{{ number_format($slowest->avg_days, 1, ',', '.') }} dias</small>
-                            </div>
-                        </div>
-                    @endif
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {{-- Gráfico por filial + ranking --}}
-    <div class="col-lg-8 mb-3">
-        <div class="card h-100">
-            <div class="card-header">
-                <h3 class="card-title">
-                    <span class="status-dot mr-2" style="background: var(--brand-dark)"></span>
-                    Tempo médio por filial
-                </h3>
-                <div>
-                    <span class="branch-sla sla-good mr-1">≤ {{ $slaMeta }}d</span>
-                    <span class="branch-sla sla-warn mr-1">{{ $slaMeta + 1 }}–{{ $slaAtencao }}d</span>
-                    <span class="branch-sla sla-bad">> {{ $slaAtencao }}d</span>
-                </div>
-            </div>
-            <div class="card-body">
-                <div style="height: 240px; position: relative;">
-                    <canvas id="avgDaysByBranchChart"></canvas>
-                </div>
-
-{{-- Ranking compacto --}}
-<div class="mt-4">
-    @forelse ($avgDaysByBranch as $row)
-        @php $sla = $slaFor($row->avg_days); @endphp
-        {{-- 👇 Adicionado o border-0 na última linha --}}
-        <div class="d-flex align-items-center justify-content-between py-3 {{ $loop->last ? 'border-0' : '' }}" style="{{ $loop->last ? '' : 'border-bottom: 1px solid var(--line-soft);' }}">
-            <div class="d-flex align-items-center">
-                                <div class="branch-rank mr-3 {{ $loop->first ? 'rank-1' : '' }}">
-                                    {{ $loop->iteration }}
+                            @if ($slowest->origin !== $fastest->origin)
+                                <div class="dashboard-attendance-row d-flex flex-wrap justify-content-between pt-2">
+                                    <dt class="small pr-2">Filial mais demorada</dt>
+                                    <dd class="mb-0 ml-auto text-right">
+                                        <strong class="d-block">{{ $slowest->origin }}</strong>
+                                        <small class="text-muted">{{ number_format($slowest->avg_days, 1, ',', '.') }} dias</small>
+                                    </dd>
                                 </div>
-                                <div>
-                                    <div class="branch-name">{{ $row->origin }}</div>
-                                    <div class="branch-meta">
-                                        {{ $row->total_completed }} atendimentos ·
-                                        min {{ $row->min_days }}d · máx {{ $row->max_days }}d
+                            @endif
+                        </dl>
+                    @else
+                        <p class="text-muted mb-0">Sem atendimentos concluídos no período.</p>
+                    @endif
+                </div>
+            </section>
+        </div>
+
+        <div class="col-lg-8 mb-3">
+            <section class="card mb-0" aria-labelledby="branches-title">
+                <div class="card-header">
+                    <h3 id="branches-title" class="card-title">Tempo médio por filial</h3>
+                    @if ($overallSla)
+                        <div class="d-flex flex-wrap gap-2" aria-label="Faixas de prazo">
+                            <span class="badge badge-success">Até {{ $slaMeta }} d</span>
+                            <span class="badge badge-warning" title="Mais de {{ $slaMeta }} e até {{ $slaAtencao }} dias">Até {{ $slaAtencao }} d</span>
+                            <span class="badge badge-danger">Acima de {{ $slaAtencao }} d</span>
+                        </div>
+                    @endif
+                </div>
+                <div class="card-body">
+                    @if ($overallSla)
+                        <div style="height: {{ max(160, $avgDaysByBranch->count() * 42 + 34) }}px; position: relative;">
+                            <canvas id="avgDaysByBranchChart" aria-label="Tempo médio de atendimento por filial" role="img"></canvas>
+                        </div>
+                        <ul class="list-unstyled mt-3 mb-0">
+                            @foreach ($avgDaysByBranch as $row)
+                                @php $sla = $slaFor($row->avg_days); @endphp
+                                <li class="dashboard-attendance-row d-flex align-items-center justify-content-between py-2">
+                                    <div class="pr-2">
+                                        <strong class="d-block">{{ $row->origin }}</strong>
+                                        <small class="text-muted">
+                                            {{ $row->total_completed }} {{ $row->total_completed === 1 ? 'atendimento' : 'atendimentos' }}
+                                            · mín. {{ $row->min_days }} d · máx. {{ $row->max_days }} d
+                                        </small>
                                     </div>
-                                </div>
-                            </div>
-                            <div class="text-right ml-3">
-                                <div class="branch-avg" style="color: {{ $sla['color'] }}">
-                                    {{ number_format($row->avg_days, 1, ',', '.') }}d
-                                </div>
-                                <span class="branch-sla {{ $sla['class'] }}">{{ $sla['label'] }}</span>
-                            </div>
-                        </div>
-                    @empty
-                        <p class="text-muted text-center py-3 mb-0">
-                            Nenhum atendimento concluído nos últimos {{ $periodDays }} dias.
-                        </p>
-                    @endforelse
+                                    <div class="text-right">
+                                        <strong class="d-block text-nowrap">{{ number_format($row->avg_days, 1, ',', '.') }} d</strong>
+                                        <span class="badge badge-{{ $sla['tone'] }}">{{ $sla['label'] }}</span>
+                                    </div>
+                                </li>
+                            @endforeach
+                        </ul>
+                    @else
+                        <p class="text-muted mb-0">Nenhuma filial tem atendimentos concluídos no período.</p>
+                    @endif
                 </div>
-            </div>
+            </section>
         </div>
     </div>
-</div>
 
 @endsection
 
@@ -373,32 +365,35 @@
         document.addEventListener('DOMContentLoaded', function () {
             if (!window.Chart) return;
 
-            // As cores vêm das variáveis CSS, então acompanham a marca configurada.
-            const token = (name, fallback) => {
-                const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-                return value || fallback;
-            };
+            const styles = getComputedStyle(document.documentElement);
+            const token = (name) => styles.getPropertyValue(name).trim();
 
             const palette = {
-                dark: token('--brand-dark', '#3D3935'),
-                taupe: token('--brand-taupe', '#857874'),
-                sand: token('--brand-sand', '#C1B2A2'),
-                success: token('--brand-success', '#4F7A5B'),
-                warning: token('--brand-warning', '#B8894A'),
-                info: token('--brand-info', '#6B7C8C'),
-                grid: token('--line-soft', '#EFEAE5'),
-                ink: token('--ink-mute', '#A69C96')
+                dark: token('--brand-dark'),
+                taupe: token('--brand-taupe'),
+                sand: token('--brand-sand'),
+                success: token('--brand-success'),
+                warning: token('--brand-warning'),
+                danger: token('--brand-danger'),
+                info: token('--brand-info'),
+                grid: token('--line-soft'),
+                ink: token('--ink'),
+                surface: token('--surface')
             };
 
-            Chart.defaults.font.family = "'Montserrat', system-ui, sans-serif";
+            Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
             Chart.defaults.font.size = 11;
             Chart.defaults.color = palette.ink;
+
+            if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+                Chart.defaults.animation = false;
+            }
 
             const monthCanvas = document.getElementById('osByMonthChart');
             if (monthCanvas) {
                 const gradient = monthCanvas.getContext('2d').createLinearGradient(0, 0, 0, 300);
-                gradient.addColorStop(0, 'rgba(133,120,116,.22)');
-                gradient.addColorStop(1, 'rgba(133,120,116,0)');
+                gradient.addColorStop(0, getComputedStyle(monthCanvas).color);
+                gradient.addColorStop(1, 'transparent');
 
                 new Chart(monthCanvas, {
                     type: 'line',
@@ -410,12 +405,12 @@
                             borderColor: palette.taupe,
                             backgroundColor: gradient,
                             fill: true,
-                            tension: .38,
+                            cubicInterpolationMode: 'monotone',
                             borderWidth: 2.5,
-                            pointRadius: 0,
+                            pointRadius: {{ $osByMonth->count() === 1 ? 4 : 0 }},
                             pointHoverRadius: 5,
                             pointHoverBackgroundColor: palette.dark,
-                            pointHoverBorderColor: '#fff',
+                            pointHoverBorderColor: palette.surface,
                             pointHoverBorderWidth: 2
                         }]
                     },
@@ -425,7 +420,11 @@
                         interaction: { intersect: false, mode: 'index' },
                         plugins: { legend: { display: false } },
                         scales: {
-                            x: { grid: { display: false }, border: { display: false } },
+                            x: {
+                                grid: { display: false },
+                                border: { display: false },
+                                ticks: { maxRotation: 0 }
+                            },
                             y: {
                                 beginAtZero: true,
                                 grid: { color: palette.grid },
@@ -442,21 +441,15 @@
                 new Chart(originCanvas, {
                     type: 'doughnut',
                     data: {
-                        labels: ['Showroom SP', 'Showroom Limeira', 'On-line', 'E-commerce', 'Eventos'],
+                        labels: @json($origins->keys()),
                         datasets: [{
-                            data: [
-                                {{ $origins['showroom_sp'] ?? 0 }},
-                                {{ $origins['limeira'] ?? 0 }},
-                                {{ $origins['online'] ?? 0 }},
-                                {{ $origins['ecommerce'] ?? 0 }},
-                                {{ $origins['events'] ?? 0 }}
-                            ],
+                            data: @json($origins->values()),
                             backgroundColor: [
                                 palette.dark, palette.taupe, palette.sand,
                                 palette.info, palette.warning
                             ],
                             borderWidth: 3,
-                            borderColor: '#fff',
+                            borderColor: palette.surface,
                             hoverOffset: 5
                         }]
                     },
@@ -479,7 +472,7 @@
                 new Chart(compositionCanvas, {
                     type: 'bar',
                     data: {
-                        labels: ['Em garantia', 'Faturado', 'Aguardando análise'],
+                        labels: ['Em garantia', 'Faturado', ['Aguardando', 'análise']],
                         datasets: [{
                             data: [
                                 {{ $warrantyStats['warranty'] ?? 0 }},
@@ -496,7 +489,11 @@
                         maintainAspectRatio: false,
                         plugins: { legend: { display: false } },
                         scales: {
-                            x: { grid: { display: false }, border: { display: false } },
+                            x: {
+                                grid: { display: false },
+                                border: { display: false },
+                                ticks: { maxRotation: 0 }
+                            },
                             y: {
                                 beginAtZero: true,
                                 grid: { color: palette.grid },
@@ -507,23 +504,24 @@
                     }
                 });
             }
-        
-                        /* ─── 4. Tempo médio por filial (barras horizontais com SLA) ─── */
-            const ctxAvgBranch = document.getElementById('avgDaysByBranchChart');
-            if (ctxAvgBranch) {
+
+            const branchCanvas = document.getElementById('avgDaysByBranchChart');
+            if (branchCanvas) {
                 @php
                     $branchLabels = $avgDaysByBranch->pluck('origin');
                     $branchValues = $avgDaysByBranch->pluck('avg_days')->map(fn ($v) => round($v, 1));
-                    $branchColors = $avgDaysByBranch->map(fn ($r) => $slaFor($r->avg_days)['color']);
+                    $branchTones = $avgDaysByBranch->map(fn ($row) => $slaFor($row->avg_days)['tone']);
                 @endphp
 
-                new Chart(ctxAvgBranch, {
+                const tones = @json($branchTones);
+
+                new Chart(branchCanvas, {
                     type: 'bar',
                     data: {
-                        labels: {!! json_encode($branchLabels) !!},
+                        labels: @json($branchLabels),
                         datasets: [{
-                            data: {!! json_encode($branchValues) !!},
-                            backgroundColor: {!! json_encode($branchColors) !!},
+                            data: @json($branchValues),
+                            backgroundColor: tones.map(tone => palette[tone]),
                             borderRadius: 6,
                             maxBarThickness: 26
                         }]
@@ -536,7 +534,7 @@
                             legend: { display: false },
                             tooltip: {
                                 callbacks: {
-                                    label: (ctx) => ` ${ctx.parsed.x} dias em média`
+                                    label: (context) => ' ' + context.parsed.x.toLocaleString('pt-BR') + ' dias em média'
                                 }
                             }
                         },
@@ -545,10 +543,12 @@
                                 beginAtZero: true,
                                 grid: { color: palette.grid },
                                 border: { display: false },
-                                ticks: { callback: (v) => v + 'd' }
+                                ticks: { callback: (value) => value + ' d' }
                             },
-                            y: { 
-                                display: false // 👈 Oculta o nome da filial no eixo Y
+                            y: {
+                                grid: { display: false },
+                                border: { display: false },
+                                ticks: { font: { size: 10 } }
                             }
                         }
                     }

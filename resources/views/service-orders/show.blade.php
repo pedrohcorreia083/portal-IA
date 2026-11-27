@@ -219,6 +219,19 @@
                     @if (auth()->user()->isAdmin())
                         <a href="{{ route('service-orders.edit', $serviceOrder) }}"
                            class="btn btn-outline-secondary btn-block">Editar dados da OS</a>
+                        @if ($items->contains(fn ($item) => $item->technicalSheet !== null))
+                            <p class="small text-muted my-2">A exclusão fica bloqueada quando há histórico técnico.</p>
+                        @else
+                            <form method="POST" action="{{ route('service-orders.destroy', $serviceOrder) }}" class="my-2"
+                                  data-confirm="Excluir a OS {{ $serviceOrder->order_number }}, suas peças e as fotos vinculadas? Esta ação é permanente."
+                                  onsubmit="return confirm(this.dataset.confirm)">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="btn btn-outline-danger btn-block">
+                                    <i class="fas fa-trash mr-1" aria-hidden="true"></i> Excluir OS
+                                </button>
+                            </form>
+                        @endif
                     @endif
                     <a href="{{ route('service-orders.index') }}" class="btn btn-light btn-block">Voltar para lista</a>
                 </div>
