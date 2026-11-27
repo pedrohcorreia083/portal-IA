@@ -39,6 +39,7 @@ class ServiceOrderController extends Controller
         $sort = in_array($request->sort, $allowed) ? $request->sort : 'created_at';
         $dir = $request->direction === 'asc' ? 'asc' : 'desc';
         $perPage = min(max($request->integer('per_page', 10), 1), 100);
+        $registrationDates = $this->validateRegistrationDates($request);
 
         $serviceOrders = ServiceOrder::query()
             ->withCount('items')
@@ -49,6 +50,7 @@ class ServiceOrderController extends Controller
             ->when($request->status, fn ($q, $v) => $q->where('status', $v))
             ->when($request->date_from, fn ($q, $v) => $q->whereDate('order_date', '>=', $v))
             ->when($request->date_to, fn ($q, $v) => $q->whereDate('order_date', '<=', $v))
+            ->registeredDuring($registrationDates['registered_from'] ?? null, $registrationDates['registered_to'] ?? null)
             ->orderBy($sort, $dir)
             ->paginate($perPage);
 
@@ -472,7 +474,17 @@ class ServiceOrderController extends Controller
 
     public function export(Request $request)
     {
+        $this->validateRegistrationDates($request);
+
         return Excel::download(new ServiceOrdersExport($request), 'ordens_servico.xlsx');
+    }
+
+    private function validateRegistrationDates(Request $request): array
+    {
+        return $request->validate([
+            'registered_from' => ['nullable', 'date_format:Y-m-d'],
+            'registered_to' => ['nullable', 'date_format:Y-m-d'],
+        ]);
     }
 
     public function updateItemsStatus(Request $request, ServiceOrder $serviceOrder, TechnicalSheetWorkflow $workflow)

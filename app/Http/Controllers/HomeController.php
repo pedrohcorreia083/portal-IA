@@ -24,17 +24,17 @@ class HomeController extends Controller
             'date_to.after_or_equal' => 'A data final deve ser igual ou posterior à data inicial.',
         ]);
 
-        $today = CarbonImmutable::today();
-        $start = isset($filters['date_from']) ? CarbonImmutable::parse($filters['date_from']) : $today->subMonths(11)->startOfMonth();
-        $end = isset($filters['date_to']) ? CarbonImmutable::parse($filters['date_to']) : $today;
+        $timezone = ServiceOrder::REGISTRATION_TIMEZONE;
+        $today = CarbonImmutable::today($timezone);
+        $start = isset($filters['date_from']) ? CarbonImmutable::parse($filters['date_from'], $timezone)->startOfDay() : $today->subMonths(11)->startOfMonth();
+        $end = isset($filters['date_to']) ? CarbonImmutable::parse($filters['date_to'], $timezone)->startOfDay() : $today;
         $dates = ['date_from' => $start->toDateString(), 'date_to' => $end->toDateString()];
 
         $hasCompletedAt = Schema::hasColumn('technical_sheets', 'completed_at');
         $sheetColumns = 'id,service_order_item_id,status,updated_at'.($hasCompletedAt ? ',completed_at' : '');
         $orders = ServiceOrder::query()
-            ->whereDate('order_date', '>=', $dates['date_from'])
-            ->whereDate('order_date', '<=', $dates['date_to'])
-            ->select(['id', 'order_date', 'origin', 'status'])
+            ->registeredDuring($dates['date_from'], $dates['date_to'])
+            ->select(['id', 'order_date', 'created_at', 'origin', 'status'])
             ->with(['items:id,service_order_id,services,is_guarantee,repair_price', 'items.technicalSheet:'.$sheetColumns])
             ->lazyById(500);
 
@@ -52,7 +52,7 @@ class HomeController extends Controller
         foreach ($orders as $order) {
             $orderCounts[$order->status] = ($orderCounts[$order->status] ?? 0) + 1;
             $originCounts[$order->origin] = ($originCounts[$order->origin] ?? 0) + 1;
-            $month = $order->order_date->format('Y-m');
+            $month = $order->created_at->setTimezone($timezone)->format('Y-m');
             $monthlyCounts[$month] = ($monthlyCounts[$month] ?? 0) + 1;
 
             foreach ($order->items as $item) {

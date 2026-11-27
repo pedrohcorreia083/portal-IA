@@ -16,6 +16,10 @@
 @php
     $currentSort = request('sort', 'created_at');
     $currentDir = request('direction', 'desc');
+    $filtersByRegistration = request()->filled('registered_from') || request()->filled('registered_to');
+    $dateFromField = $filtersByRegistration ? 'registered_from' : 'date_from';
+    $dateToField = $filtersByRegistration ? 'registered_to' : 'date_to';
+    $dateColumn = $filtersByRegistration ? 'created_at' : 'order_date';
 
     $sortUrl = function ($field) use ($currentSort, $currentDir) {
         $dir = ($currentSort === $field && $currentDir === 'asc') ? 'desc' : 'asc';
@@ -40,6 +44,8 @@
         'status' => ['label' => 'Status', 'icon' => 'fa-flag'],
         'date_from' => ['label' => 'De', 'icon' => 'fa-calendar-alt'],
         'date_to' => ['label' => 'Até', 'icon' => 'fa-calendar-alt'],
+        'registered_from' => ['label' => 'Cadastro de', 'icon' => 'fa-calendar-alt'],
+        'registered_to' => ['label' => 'Cadastro até', 'icon' => 'fa-calendar-alt'],
     ])->filter(fn($meta, $key) => request()->filled($key));
 
     $canBulkDelete = \Illuminate\Support\Facades\Route::has('service-orders.bulk-destroy');
@@ -156,6 +162,7 @@
                             <select name="status" class="form-control">
                                 <option value="">Todos</option>
                                 @foreach ([
+                                        'created' => 'Aguardando triagem',
                                         'pending' => 'Pendente',
                                         'in_progress' => 'Em andamento',
                                         'completed' => 'Concluída',
@@ -169,13 +176,15 @@
                         </div>
 
                         <div class="col-md-3 mb-3">
-                            <label>Data inicial</label>
-                            <input type="date" name="date_from" class="form-control" value="{{ request('date_from') }}">
+                            <label for="service-orders-date-from">{{ $filtersByRegistration ? 'Cadastro de' : 'Data inicial' }}</label>
+                            <input type="date" id="service-orders-date-from" name="{{ $dateFromField }}" class="form-control"
+                                   value="{{ request($dateFromField) }}">
                         </div>
 
                         <div class="col-md-3 mb-3">
-                            <label>Data final</label>
-                            <input type="date" name="date_to" class="form-control" value="{{ request('date_to') }}">
+                            <label for="service-orders-date-to">{{ $filtersByRegistration ? 'Cadastro até' : 'Data final' }}</label>
+                            <input type="date" id="service-orders-date-to" name="{{ $dateToField }}" class="form-control"
+                                   value="{{ request($dateToField) }}">
                         </div>
 
                         <div class="col-md-3 mb-3">
@@ -263,8 +272,8 @@
                                 </a>
                             </th>
                             <th>
-                                <a href="{{ $sortUrl('order_date') }}" class="text-dark text-decoration-none">
-                                    Data {!! $sortIcon('order_date') !!}
+                                <a href="{{ $sortUrl($dateColumn) }}" class="text-dark text-decoration-none">
+                                    {{ $filtersByRegistration ? 'Data de cadastro' : 'Data' }} {!! $sortIcon($dateColumn) !!}
                                 </a>
                             </th>
                             <th>Itens</th>
@@ -302,7 +311,11 @@
                                     </span>
                                 </td>
 
-                                <td>{{ $serviceOrder->order_date->format('d/m/Y') }}</td>
+                                <td>
+                                    {{ $filtersByRegistration
+                                        ? $serviceOrder->created_at->setTimezone(\App\Models\ServiceOrder::REGISTRATION_TIMEZONE)->format('d/m/Y')
+                                        : $serviceOrder->order_date->format('d/m/Y') }}
+                                </td>
 
                                 <td>
                                     <span class="badge badge-light border px-3 py-2">

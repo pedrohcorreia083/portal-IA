@@ -83,15 +83,18 @@
                     <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary">Limpar</a>
                 </div>
             </div>
-            <p id="dashboard-date-note" class="small text-muted mt-2 mb-0">O período considera a data de abertura da OS.</p>
+            <p id="dashboard-date-note" class="small text-muted mt-2 mb-0">
+                O período considera quando a OS foi cadastrada no sistema, no horário de Brasília.
+            </p>
         </div>
     </form>
 
     @if ($stats['total_os'] === 0)
-        <p class="alert alert-info" role="status">Nenhuma ordem de serviço foi aberta no período.</p>
+        <p class="alert alert-info" role="status">Nenhuma ordem de serviço foi cadastrada no período.</p>
     @endif
 
     @php
+        $registrationDates = ['registered_from' => $dates['date_from'], 'registered_to' => $dates['date_to']];
         $warranty = $warrantyStats['warranty'] ?? 0;
         $paid = $warrantyStats['paid'] ?? 0;
         $pending = $warrantyStats['pending_analysis'] ?? 0;
@@ -137,7 +140,7 @@
             <span class="stat-label">Aguardando triagem</span>
             <div class="stat-value">{{ number_format($stats['os_pending'], 0, ',', '.') }}</div>
             <div class="stat-foot">
-                <a href="{{ route('service-orders.index', $dates + ['status' => 'created']) }}">Ver pendentes</a>
+                <a href="{{ route('service-orders.index', $registrationDates + ['status' => 'created']) }}">Ver pendentes</a>
             </div>
             <i class="fas fa-hourglass-half stat-icon"></i>
         </div>
@@ -146,7 +149,7 @@
             <span class="stat-label">OS concluídas</span>
             <div class="stat-value">{{ number_format($stats['os_completed'], 0, ',', '.') }}</div>
             <div class="stat-foot">
-                <a href="{{ route('service-orders.index', $dates + ['status' => 'completed']) }}">Ver concluídas</a>
+                <a href="{{ route('service-orders.index', $registrationDates + ['status' => 'completed']) }}">Ver concluídas</a>
             </div>
             <i class="fas fa-check-double stat-icon"></i>
         </div>
@@ -169,10 +172,10 @@
         <div class="col-lg-8 mb-3">
             <div class="card h-100 mb-0">
                 <div class="card-header">
-                    <h3 class="card-title">Volumetria de ordens por mês</h3>
+                    <h3 class="card-title">Ordens cadastradas por mês</h3>
                 </div>
                 <div class="card-body" style="height:320px">
-                    <canvas id="osByMonthChart" aria-label="Volumetria de ordens por mês" role="img"></canvas>
+                    <canvas id="osByMonthChart" aria-label="Ordens cadastradas por mês" role="img"></canvas>
                 </div>
             </div>
         </div>

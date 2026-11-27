@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class ServiceOrder extends Model
 {
     use HasFactory;
+
+    public const REGISTRATION_TIMEZONE = 'America/Sao_Paulo';
 
     // Status da OS
     const STATUS_CREATED = 'created';
@@ -55,6 +59,23 @@ class ServiceOrder extends Model
     }
 
     // Escopos
+    public function scopeRegisteredDuring(Builder $query, ?string $from, ?string $to): Builder
+    {
+        $storageTimezone = config('app.timezone');
+
+        if ($from !== null) {
+            $start = CarbonImmutable::parse($from, self::REGISTRATION_TIMEZONE)->startOfDay();
+            $query->where('created_at', '>=', $start->setTimezone($storageTimezone));
+        }
+
+        if ($to !== null) {
+            $nextDay = CarbonImmutable::parse($to, self::REGISTRATION_TIMEZONE)->addDay()->startOfDay();
+            $query->where('created_at', '<', $nextDay->setTimezone($storageTimezone));
+        }
+
+        return $query;
+    }
+
     public function scopeNeedsAnalysis($query)
     {
         return $query->where('status', self::STATUS_CREATED);

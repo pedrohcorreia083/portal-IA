@@ -22,6 +22,13 @@ class ServiceOrdersExport implements FromCollection, WithHeadings
         $query = ServiceOrder::query()
             ->with('products');
 
+        $registeredFrom = $this->request->query('registered_from');
+        $registeredTo = $this->request->query('registered_to');
+        if ($registeredFrom !== null || $registeredTo !== null) {
+            $query->registeredDuring($registeredFrom, $registeredTo)
+                ->when($this->request->status, fn ($query, $status) => $query->where('status', $status));
+        }
+
         // Filtro por número da OS
         if ($this->request->order_number) {
             $query->where(
