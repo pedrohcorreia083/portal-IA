@@ -39,7 +39,8 @@ class ServiceOrderController extends Controller
         $sort = in_array($request->sort, $allowed) ? $request->sort : 'created_at';
         $dir = $request->direction === 'asc' ? 'asc' : 'desc';
         $perPage = min(max($request->integer('per_page', 10), 1), 100);
-        $registrationDates = $this->validateRegistrationDates($request);
+        $filters = $this->validateIndexFilters($request);
+        $statusFilter = $filters['status'] ?? null;
 
         $serviceOrders = ServiceOrder::query()
             ->withCount('items')
@@ -47,14 +48,14 @@ class ServiceOrderController extends Controller
             ->when($request->client_name, fn ($q, $v) => $q->where('client_name', 'like', "%{$v}%"))
             ->when($request->consultant_name, fn ($q, $v) => $q->where('consultant_name', 'like', "%{$v}%"))
             ->when($request->origin, fn ($q, $v) => $q->where('origin', $v))
-            ->when($request->status, fn ($q, $v) => $q->where('status', $v))
+            ->filterStatus($statusFilter)
             ->when($request->date_from, fn ($q, $v) => $q->whereDate('order_date', '>=', $v))
             ->when($request->date_to, fn ($q, $v) => $q->whereDate('order_date', '<=', $v))
-            ->registeredDuring($registrationDates['registered_from'] ?? null, $registrationDates['registered_to'] ?? null)
+            ->registeredDuring($filters['registered_from'] ?? null, $filters['registered_to'] ?? null)
             ->orderBy($sort, $dir)
             ->paginate($perPage);
 
-        return view('service-orders.index', compact('serviceOrders'));
+        return view('service-orders.index', compact('serviceOrders', 'statusFilter'));
     }
 
     public function create()
@@ -474,16 +475,20 @@ class ServiceOrderController extends Controller
 
     public function export(Request $request)
     {
-        $this->validateRegistrationDates($request);
+        $this->validateIndexFilters($request);
 
         return Excel::download(new ServiceOrdersExport($request), 'ordens_servico.xlsx');
     }
 
-    private function validateRegistrationDates(Request $request): array
+    private function validateIndexFilters(Request $request): array
     {
         return $request->validate([
+            'status' => ['bail', 'nullable', 'string', Rule::in(array_keys(ServiceOrder::STATUS_LABELS))],
             'registered_from' => ['nullable', 'date_format:Y-m-d'],
             'registered_to' => ['nullable', 'date_format:Y-m-d'],
+        ], [
+            'status.string' => 'Selecione um status válido para a OS.',
+            'status.in' => 'Selecione um status válido para a OS.',
         ]);
     }
 

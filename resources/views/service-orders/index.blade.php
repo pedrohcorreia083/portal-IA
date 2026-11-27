@@ -20,6 +20,11 @@
     $dateFromField = $filtersByRegistration ? 'registered_from' : 'date_from';
     $dateToField = $filtersByRegistration ? 'registered_to' : 'date_to';
     $dateColumn = $filtersByRegistration ? 'created_at' : 'order_date';
+    $statusOptions = \App\Models\ServiceOrder::STATUS_LABELS;
+    unset($statusOptions[\App\Models\ServiceOrder::STATUS_LEGACY_IN_PROGRESS]);
+    $selectedStatus = $statusFilter === \App\Models\ServiceOrder::STATUS_LEGACY_IN_PROGRESS
+        ? \App\Models\ServiceOrder::STATUS_UNDER_ANALYSIS
+        : $statusFilter;
 
     $sortUrl = function ($field) use ($currentSort, $currentDir) {
         $dir = ($currentSort === $field && $currentDir === 'asc') ? 'desc' : 'asc';
@@ -57,7 +62,7 @@
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-3 mb-4">
         <div class="d-flex flex-wrap align-items-center gap-2 w-100 w-md-auto">
             <a href="{{ route('service-orders.export', request()->all()) }}" class="btn btn-outline-secondary">
-                <i class="fas fa-file-excel"></i>
+                <i class="fas fa-file-excel" aria-hidden="true"></i>
                 Exportar Excel
             </a>
             <a href="{{ route('service-orders.create') }}" class="btn btn-primary">
@@ -78,7 +83,7 @@
                 @endphp
                 <a href="{{ $removeUrl }}" class="badge badge-primary px-3 py-2 text-decoration-none">
                     <i class="fas {{ $meta['icon'] }} mr-1"></i>
-                    {{ $meta['label'] }}: <strong>{{ request($key) }}</strong>
+                    {{ $meta['label'] }}: <strong>{{ $key === 'status' ? $statusOptions[$selectedStatus] : request($key) }}</strong>
                     <i class="fas fa-times ml-1"></i>
                 </a>
             @endforeach
@@ -157,18 +162,11 @@
 
                     <div class="row">
                         <div class="col-md-3 mb-3">
-                            <label>Status</label>
-                            {{-- Ajuste os valores abaixo conforme os status reais da sua app --}}
-                            <select name="status" class="form-control">
+                            <label for="service-orders-status">Status</label>
+                            <select id="service-orders-status" name="status" class="form-control">
                                 <option value="">Todos</option>
-                                @foreach ([
-                                        'created' => 'Aguardando triagem',
-                                        'pending' => 'Pendente',
-                                        'in_progress' => 'Em andamento',
-                                        'completed' => 'Concluída',
-                                        'cancelled' => 'Cancelada',
-                                    ] as $value => $label)
-                                    <option value="{{ $value }}" {{ request('status') === $value ? 'selected' : '' }}>
+                                @foreach ($statusOptions as $value => $label)
+                                    <option value="{{ $value }}" @selected($selectedStatus === $value)>
                                         {{ $label }}
                                     </option>
                                 @endforeach
@@ -201,11 +199,11 @@
 
                     <div class="text-right">
                         <button type="submit" class="btn btn-primary shadow-sm">
-                            <i class="fas fa-search mr-1"></i>
+                            <i class="fas fa-search mr-1" aria-hidden="true"></i>
                             Filtrar
                         </button>
                         <a href="{{ route('service-orders.index') }}" class="btn btn-outline-secondary">
-                            <i class="fas fa-times mr-1"></i>
+                            <i class="fas fa-times mr-1" aria-hidden="true"></i>
                             Limpar
                         </a>
                     </div>

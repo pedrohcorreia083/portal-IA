@@ -26,6 +26,18 @@ class ServiceOrder extends Model
 
     const STATUS_CANCELLED = 'cancelled';
 
+    public const STATUS_LEGACY_IN_PROGRESS = 'in_progress';
+
+    public const STATUS_LABELS = [
+        self::STATUS_CREATED => 'Criada',
+        'pending' => 'Pendente',
+        self::STATUS_UNDER_ANALYSIS => 'Em atendimento',
+        self::STATUS_APPROVED => 'Análise finalizada',
+        self::STATUS_COMPLETED => 'Concluída',
+        self::STATUS_CANCELLED => 'Cancelada',
+        self::STATUS_LEGACY_IN_PROGRESS => 'Em atendimento',
+    ];
+
     protected $fillable = [
         'order_number',
         'client_name',
@@ -59,6 +71,18 @@ class ServiceOrder extends Model
     }
 
     // Escopos
+    public function scopeFilterStatus(Builder $query, ?string $status): Builder
+    {
+        return match ($status) {
+            null, '' => $query,
+            self::STATUS_UNDER_ANALYSIS, self::STATUS_LEGACY_IN_PROGRESS => $query->whereIn('status', [
+                self::STATUS_UNDER_ANALYSIS,
+                self::STATUS_LEGACY_IN_PROGRESS,
+            ]),
+            default => $query->where('status', $status),
+        };
+    }
+
     public function scopeRegisteredDuring(Builder $query, ?string $from, ?string $to): Builder
     {
         $storageTimezone = config('app.timezone');
@@ -125,16 +149,7 @@ class ServiceOrder extends Model
 
     public function getStatusLabelAttribute(): string
     {
-        return [
-            self::STATUS_CREATED => 'Criada',
-            self::STATUS_APPROVED => 'Análise finalizada',
-            self::STATUS_UNDER_ANALYSIS => 'Em atendimento',
-            self::STATUS_COMPLETED => 'Concluída',
-            self::STATUS_CANCELLED => 'Cancelada',
-            'pending' => 'Pendente',
-            'in_progress' => 'Em atendimento',
-
-        ][$this->status] ?? 'Desconhecido';
+        return self::STATUS_LABELS[$this->status] ?? 'Desconhecido';
     }
 
     public function getStatusBadgeClassAttribute(): string
@@ -146,7 +161,7 @@ class ServiceOrder extends Model
             self::STATUS_COMPLETED => 'badge-success',
             self::STATUS_CANCELLED => 'badge-danger',
             'pending' => 'badge-warning',
-            'in_progress' => 'badge-info',
+            self::STATUS_LEGACY_IN_PROGRESS => 'badge-info',
         ][$this->status] ?? 'badge-secondary';
     }
 
