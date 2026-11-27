@@ -76,25 +76,4 @@ class AccessControlTest extends TestCase
         // O PDF deriva o tipo de garantia das peças, não mais da OS.
         $this->actingAs($admin)->get(route('service-orders.pdf', $order))->assertOk();
     }
-
-    public function test_dashboard_renders_the_monthly_trend_with_several_months(): void
-    {
-        $admin = User::factory()->create(['type' => 'admin']);
-
-        // Três meses distintos: o cálculo de tendência só roda com 2+ meses.
-        foreach ([now()->subMonths(2), now()->subMonth(), now()] as $index => $date) {
-            $order = ServiceOrder::create([
-                'client_name' => "Cliente {$index}", 'consultant_name' => 'Consultora',
-                'client_code' => '1', 'origin' => 'SHOWROOM SP',
-                'order_date' => $date->toDateString(),
-            ]);
-
-            $order->forceFill(['created_at' => $date, 'updated_at' => $date])->save();
-        }
-
-        $this->actingAs($admin)
-            ->get('/dashboard')
-            ->assertOk()
-            ->assertSee('dash-kpi-trend');
-    }
 }

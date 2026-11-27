@@ -32,7 +32,7 @@
             color: color-mix(in srgb, var(--brand-warning) 68%, var(--ink));
         }
 
-        #osByMonthChart {
+        #registrationsChart {
             color: transparent;
             color: color-mix(in srgb, var(--brand-taupe) 22%, transparent);
         }
@@ -89,28 +89,18 @@
         </div>
     </form>
 
+@if ($hasPeriod)
     @if ($stats['total_os'] === 0)
         <p class="alert alert-info" role="status">Nenhuma ordem de serviço foi cadastrada no período.</p>
     @endif
 
     @php
         $registrationDates = ['registered_from' => $dates['date_from'], 'registered_to' => $dates['date_to']];
+        $registrationChartTitle = $groupByDay ? 'Ordens cadastradas por dia' : 'Ordens cadastradas por mês';
         $warranty = $warrantyStats['warranty'] ?? 0;
         $paid = $warrantyStats['paid'] ?? 0;
         $pending = $warrantyStats['pending_analysis'] ?? 0;
         $totalItems = max($warranty + $paid + $pending, 1);
-
-        // Tendência do último mês vs. anterior.
-        $months = $osByMonth->values();
-        $trend = null;
-        if ($months->count() >= 2) {
-            $last = (int) ($months[$months->count() - 1]['count'] ?? 0);
-            $prev = (int) ($months[$months->count() - 2]['count'] ?? 0);
-            if ($prev > 0) {
-                $diff = (($last - $prev) / $prev) * 100;
-                $trend = ['value' => round($diff, 1), 'up' => $diff >= 0];
-            }
-        }
 
         $composition = [
             ['label' => 'Em garantia', 'value' => $warranty, 'token' => '--brand-warning'],
@@ -130,7 +120,7 @@
                         <i class="fas fa-arrow-{{ $trend['up'] ? 'up' : 'down' }}"></i>
                         {{ abs($trend['value']) }}%
                     </span>
-                    <span>vs. mês anterior</span>
+                    <span>{{ $trend['month'] }} vs. {{ $trend['previous_month'] }}</span>
                 @endif
             </div>
             <i class="fas fa-file-invoice stat-icon"></i>
@@ -172,10 +162,10 @@
         <div class="col-lg-8 mb-3">
             <div class="card h-100 mb-0">
                 <div class="card-header">
-                    <h3 class="card-title">Ordens cadastradas por mês</h3>
+                    <h3 class="card-title">{{ $registrationChartTitle }}</h3>
                 </div>
                 <div class="card-body" style="height:320px">
-                    <canvas id="osByMonthChart" aria-label="Ordens cadastradas por mês" role="img"></canvas>
+                    <canvas id="registrationsChart" aria-label="{{ $registrationChartTitle }}" role="img"></canvas>
                 </div>
             </div>
         </div>
@@ -361,8 +351,12 @@
         </div>
     </div>
 
+@else
+    <p class="alert alert-info" role="status">Selecione a data inicial e a data final para consultar as ordens cadastradas.</p>
+@endif
 @endsection
 
+@if ($hasPeriod)
 @push('js')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -392,25 +386,25 @@
                 Chart.defaults.animation = false;
             }
 
-            const monthCanvas = document.getElementById('osByMonthChart');
-            if (monthCanvas) {
-                const gradient = monthCanvas.getContext('2d').createLinearGradient(0, 0, 0, 300);
-                gradient.addColorStop(0, getComputedStyle(monthCanvas).color);
+            const registrationsCanvas = document.getElementById('registrationsChart');
+            if (registrationsCanvas) {
+                const gradient = registrationsCanvas.getContext('2d').createLinearGradient(0, 0, 0, 300);
+                gradient.addColorStop(0, getComputedStyle(registrationsCanvas).color);
                 gradient.addColorStop(1, 'transparent');
 
-                new Chart(monthCanvas, {
+                new Chart(registrationsCanvas, {
                     type: 'line',
                     data: {
-                        labels: @json($osByMonth->pluck('month')),
+                        labels: @json($registrationSeries->pluck('label')),
                         datasets: [{
                             label: 'Ordens',
-                            data: @json($osByMonth->pluck('count')),
+                            data: @json($registrationSeries->pluck('count')),
                             borderColor: palette.taupe,
                             backgroundColor: gradient,
                             fill: true,
                             cubicInterpolationMode: 'monotone',
                             borderWidth: 2.5,
-                            pointRadius: {{ $osByMonth->count() === 1 ? 4 : 0 }},
+                            pointRadius: {{ $registrationSeries->count() === 1 ? 4 : 0 }},
                             pointHoverRadius: 5,
                             pointHoverBackgroundColor: palette.dark,
                             pointHoverBorderColor: palette.surface,
@@ -561,3 +555,4 @@
         });
     </script>
 @endpush
+@endif

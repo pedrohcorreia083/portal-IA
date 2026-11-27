@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Exports\ServiceOrdersExport;
 use App\Models\ServiceOrder;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
 use Maatwebsite\Excel\Facades\Excel;
@@ -17,8 +18,21 @@ class DashboardFiltersTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        $this->travelTo(CarbonImmutable::parse('2026-11-27T12:00:00Z'));
         $this->withoutVite();
         $this->actingAs(User::factory()->create());
+    }
+
+    public function test_dashboard_waits_for_an_explicit_period_before_showing_results(): void
+    {
+        $this->createOrders();
+
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertViewHas('dates', ['date_from' => null, 'date_to' => null])
+            ->assertViewHas('hasPeriod', false)
+            ->assertSee('Selecione a data inicial e a data final para consultar as ordens cadastradas.')
+            ->assertDontSee('<canvas id="registrationsChart"', false);
     }
 
     public function test_one_registration_period_applies_to_every_dashboard_indicator(): void
@@ -39,8 +53,8 @@ class DashboardFiltersTest extends TestCase
                 'avg_ticket' => 80,
             ])
             ->assertViewHas('warrantyStats', ['warranty' => 1, 'paid' => 1, 'pending_analysis' => 2])
-            ->assertViewHas('osByMonth', fn (Collection $months) => $months->all() === [
-                ['month' => '10/2026', 'count' => 1], ['month' => '11/2026', 'count' => 1],
+            ->assertViewHas('registrationSeries', fn (Collection $series) => $series->all() === [
+                ['label' => '31/10', 'count' => 1], ['label' => '01/11', 'count' => 1],
             ])
             ->assertViewHas('origins', fn (Collection $origins) => $origins->values()->all() === [1, 1, 0, 0, 0])
             ->assertViewHas('avgDaysOverall', 6.5)
@@ -82,14 +96,17 @@ class DashboardFiltersTest extends TestCase
 
         $this->get(route('dashboard', $dates))
             ->assertOk()
+            ->assertSee('Ordens cadastradas por dia')
             ->assertSee(route('service-orders.index', $completedFilters))
             ->assertSee(route('service-orders.index', $pendingFilters))
+            ->assertViewHas('registrationSeries', fn (Collection $series) => $series->pluck('count')->all() === [1, 0, 0, 0, 1])
             ->assertViewHas('stats', fn (array $stats) => $stats['total_os'] === 2
                 && $stats['os_pending'] === 1
                 && $stats['os_completed'] === 1);
 
         $this->get(route('dashboard', ['date_from' => '2026-11-05', 'date_to' => '2026-11-05']))
             ->assertOk()
+            ->assertViewHas('registrationSeries', fn (Collection $series) => $series->all() === [['label' => '05/11', 'count' => 1]])
             ->assertViewHas('stats', fn (array $stats) => $stats['total_os'] === 1 && $stats['os_pending'] === 1);
 
         $this->get(route('service-orders.index', $completedFilters))
@@ -108,6 +125,29 @@ class DashboardFiltersTest extends TestCase
         $this->get(route('service-orders.export', $completedFilters))->assertOk();
         Excel::assertDownloaded('ordens_servico.xlsx', fn (ServiceOrdersExport $export) => $export->collection()
             ->pluck('N° OS')->all() === [$completed->order_number]);
+    }
+
+    public function test_monthly_chart_skips_empty_future_months_and_compares_only_complete_months(): void
+    {
+        foreach (['2026-09-02', '2026-09-10', '2026-10-01', '2026-10-15', '2026-10-30', '2026-11-05'] as $date) {
+            $this->order($date, $date.' 15:00:00', 'SHOWROOM SP');
+        }
+
+        $this->get(route('dashboard', ['date_from' => '2026-09-01', 'date_to' => '2026-12-01']))
+            ->assertOk()
+            ->assertSee('Ordens cadastradas por mês')
+            ->assertSee('dash-kpi-trend')
+            ->assertSee('10/2026 vs. 09/2026')
+            ->assertViewHas('registrationSeries', fn (Collection $series) => $series->all() === [
+                ['label' => '09/2026', 'count' => 2],
+                ['label' => '10/2026', 'count' => 3],
+                ['label' => '11/2026', 'count' => 1],
+            ])
+            ->assertViewHas('trend', fn (array $trend) => $trend['value'] === 50.0);
+
+        $this->get(route('dashboard', ['date_from' => '2026-09-02', 'date_to' => '2026-12-01']))
+            ->assertOk()
+            ->assertDontSee('dash-kpi-trend');
     }
 
     public function test_invalid_date_ranges_are_rejected(): void

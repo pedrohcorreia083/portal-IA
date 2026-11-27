@@ -12,7 +12,6 @@ class HomeController extends Controller
 {
     public function index(Request $request)
     {
-        $services = ServiceOrderItem::SERVICES;
         $filters = $request->validate([
             'date_from' => ['bail', 'nullable', 'required_with:date_to', 'date_format:Y-m-d'],
             'date_to' => ['bail', 'nullable', 'required_with:date_from', 'date_format:Y-m-d', 'after_or_equal:date_from'],
@@ -24,11 +23,22 @@ class HomeController extends Controller
             'date_to.after_or_equal' => 'A data final deve ser igual ou posterior à data inicial.',
         ]);
 
+        $dates = [
+            'date_from' => $filters['date_from'] ?? null,
+            'date_to' => $filters['date_to'] ?? null,
+        ];
+        $hasPeriod = isset($dates['date_from'], $dates['date_to']);
+        if (! $hasPeriod) {
+            return view('dashboard', compact('dates', 'hasPeriod'));
+        }
+
         $timezone = ServiceOrder::REGISTRATION_TIMEZONE;
         $today = CarbonImmutable::today($timezone);
-        $start = isset($filters['date_from']) ? CarbonImmutable::parse($filters['date_from'], $timezone)->startOfDay() : $today->subMonths(11)->startOfMonth();
-        $end = isset($filters['date_to']) ? CarbonImmutable::parse($filters['date_to'], $timezone)->startOfDay() : $today;
-        $dates = ['date_from' => $start->toDateString(), 'date_to' => $end->toDateString()];
+        $start = CarbonImmutable::parse($dates['date_from'], $timezone)->startOfDay();
+        $end = CarbonImmutable::parse($dates['date_to'], $timezone)->startOfDay();
+        $groupByDay = $start->diffInDays($end) < 31;
+        $periodKeyFormat = $groupByDay ? 'Y-m-d' : 'Y-m';
+        $periodLabelFormat = $groupByDay ? 'd/m' : 'm/Y';
 
         $hasCompletedAt = Schema::hasColumn('technical_sheets', 'completed_at');
         $sheetColumns = 'id,service_order_item_id,status,updated_at'.($hasCompletedAt ? ',completed_at' : '');
@@ -38,8 +48,9 @@ class HomeController extends Controller
             ->with(['items:id,service_order_id,services,is_guarantee,repair_price', 'items.technicalSheet:'.$sheetColumns])
             ->lazyById(500);
 
+        $services = ServiceOrderItem::SERVICES;
         $orderCounts = [];
-        $monthlyCounts = [];
+        $registrationCounts = [];
         $originCounts = [];
         $serviceCounts = array_fill_keys(array_keys($services), 0);
         $warrantyStats = ['warranty' => 0, 'paid' => 0, 'pending_analysis' => 0];
@@ -52,8 +63,8 @@ class HomeController extends Controller
         foreach ($orders as $order) {
             $orderCounts[$order->status] = ($orderCounts[$order->status] ?? 0) + 1;
             $originCounts[$order->origin] = ($originCounts[$order->origin] ?? 0) + 1;
-            $month = $order->created_at->setTimezone($timezone)->format('Y-m');
-            $monthlyCounts[$month] = ($monthlyCounts[$month] ?? 0) + 1;
+            $periodKey = $order->created_at->setTimezone($timezone)->format($periodKeyFormat);
+            $registrationCounts[$periodKey] = ($registrationCounts[$periodKey] ?? 0) + 1;
 
             foreach ($order->items as $item) {
                 // The accessor also reads older items whose service array was encoded twice.
@@ -113,11 +124,17 @@ class HomeController extends Controller
             'avg_ticket' => $pricedRepairs ? $repairTotal / $pricedRepairs : 0,
         ];
 
-        $osByMonth = collect();
-        for ($month = $start->startOfMonth(); $month <= $end; $month = $month->addMonth()) {
-            $osByMonth->push([
-                'month' => $month->format('m/Y'),
-                'count' => $monthlyCounts[$month->format('Y-m')] ?? 0,
+        $registrationSeries = collect();
+        $firstPeriod = $groupByDay ? $start : $start->startOfMonth();
+        for ($period = $firstPeriod; $period <= $end; $period = $groupByDay ? $period->addDay() : $period->addMonth()) {
+            $count = $registrationCounts[$period->format($periodKeyFormat)] ?? 0;
+            if ($count === 0 && max($period, $start) > $today) {
+                continue;
+            }
+
+            $registrationSeries->push([
+                'label' => $period->format($periodLabelFormat),
+                'count' => $count,
             ]);
         }
 
@@ -142,7 +159,9 @@ class HomeController extends Controller
 
         return view('dashboard', [
             'stats' => $stats,
-            'osByMonth' => $osByMonth,
+            'registrationSeries' => $registrationSeries,
+            'groupByDay' => $groupByDay,
+            'trend' => $groupByDay ? null : $this->monthlyTrend($registrationCounts, $start, min($end, $today->subDay())),
             'origins' => $origins,
             'warrantyStats' => $warrantyStats,
             'avgDaysByBranch' => $avgDaysByBranch,
@@ -150,7 +169,32 @@ class HomeController extends Controller
             'fastest' => $avgDaysByBranch->first(),
             'slowest' => $avgDaysByBranch->last(),
             'dates' => $dates,
+            'hasPeriod' => $hasPeriod,
             'topIncidents' => $topIncidents,
         ]);
+    }
+
+    private function monthlyTrend(array $counts, CarbonImmutable $start, CarbonImmutable $lastElapsedDate): ?array
+    {
+        $month = $lastElapsedDate->startOfMonth();
+        if ($lastElapsedDate->day !== $lastElapsedDate->daysInMonth) {
+            $month = $month->subMonth();
+        }
+
+        $previousMonth = $month->subMonth();
+        $previousCount = $counts[$previousMonth->format('Y-m')] ?? 0;
+        if ($previousMonth < $start || $previousCount === 0) {
+            return null;
+        }
+
+        $count = $counts[$month->format('Y-m')] ?? 0;
+        $change = ($count - $previousCount) / $previousCount * 100;
+
+        return [
+            'value' => round($change, 1),
+            'up' => $change >= 0,
+            'month' => $month->format('m/Y'),
+            'previous_month' => $previousMonth->format('m/Y'),
+        ];
     }
 }
